@@ -1,15 +1,35 @@
 [project]
 name = "leet-chaser"
 version = "0.1.0"
-description = "Add your description here"
+description = "Run LeetCode-style Python solutions against local TOML test cases."
 readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
+authors = [
+    { name = "Yat Leung", email = "liangyilx@gmail.com" },
+]
+keywords = ["leetcode", "cli", "testing", "toml"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Utilities",
+]
 dependencies = [
     "loguru>=0.7.3",
     "rich>=14.0.0",
     "tomli-w>=1.2.0",
     "typer>=0.15.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/gawainx/leet-chaser"
+Repository = "https://github.com/gawainx/leet-chaser"
+Issues = "https://github.com/gawainx/leet-chaser/issues"
 
 [project.scripts]
 leet-chaser = "leet_chaser.cli:app"
