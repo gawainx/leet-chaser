@@ -1,6 +1,6 @@
 [project]
 name = "leet-chaser"
-version = "0.1.0"
+version = "0.1.1"
 description = "Run LeetCode-style Python solutions against local TOML test cases."
 readme = "README.md"
 requires-python = ">=3.12"
