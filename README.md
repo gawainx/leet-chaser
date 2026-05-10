@@ -13,8 +13,7 @@ leet-chaser --help
 
 ```shell
 leet-chaser init two-sum
-cd two-sum
-leet-chaser run .
+leet-chaser run two-sum
 ```
 
 ## uvx 直接运行
@@ -24,8 +23,7 @@ leet-chaser run .
 ```shell
 uvx leet-chaser --help
 uvx leet-chaser init two-sum
-cd two-sum
-uvx leet-chaser run .
+uvx leet-chaser run two-sum
 ```
 
 ## 使用方法
@@ -34,7 +32,6 @@ uvx leet-chaser run .
 
 ```shell
 leet-chaser init two-sum
-cd two-sum
 ```
 
 命令会在当前目录创建一个题目文件夹：
@@ -85,7 +82,7 @@ output = [0, 1]
 ### STEP 4: 运行验证
 
 ```shell
-leet-chaser run .
+leet-chaser run two-sum
 ```
 
 ### STEP 5: 调试单个用例
@@ -103,9 +100,9 @@ output = [0, 1]
 运行 debug 命令会默认读取当前题目目录下的 `debug.toml`，并逐行打印入口函数的变量变化：
 
 ```shell
-leet-chaser debug .
-leet-chaser debug . -t seen -t rest
-leet-chaser debug . -c custom-debug.toml
+leet-chaser debug two-sum
+leet-chaser debug two-sum -t seen -t rest
+leet-chaser debug two-sum -c two-sum/custom-debug.toml
 ```
 
 ## 标准示例
