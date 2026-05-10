@@ -5,6 +5,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from leet_chaser.case_file import CaseFileError, read_case_file
+
 app = typer.Typer(help="Run LeetCode solutions against local test cases.")
 console = Console()
 
@@ -20,8 +22,14 @@ def run(solution: Path, cases: Path) -> None:
     Returns:
         None.
     """
+    try:
+        test_cases = read_case_file(cases)
+    except CaseFileError as error:
+        raise typer.BadParameter(str(error), param_hint="cases") from error
+
     console.print(f"Solution: {solution}")
     console.print(f"Cases: {cases}")
+    console.print(f"Loaded {len(test_cases)} test case(s).")
 
 
 def main() -> None:
