@@ -1,6 +1,7 @@
 """Command line interface for Leet-Chaser."""
 
 from pathlib import Path
+import re
 
 import typer
 from rich.console import Console
@@ -22,6 +23,24 @@ output = "fl"
 SOLUTION_TEMPLATE = ""
 
 
+def normalize_project_name(name: str) -> str:
+    """Normalize a project name into a dash-separated directory name.
+
+    Args:
+        name: Raw project name received from the command line.
+
+    Returns:
+        A directory-safe name with special symbol runs replaced by dashes.
+    """
+    normalized_name = re.sub(r"[^0-9A-Za-z]+", "-", name).strip("-")
+    if not normalized_name:
+        raise typer.BadParameter(
+            "name must contain at least one letter or number",
+            param_hint="name",
+        )
+    return normalized_name
+
+
 @app.command()
 def init(name: str) -> None:
     """Create a solution workspace in the current directory.
@@ -32,7 +51,8 @@ def init(name: str) -> None:
     Returns:
         None.
     """
-    project_dir = Path.cwd() / name
+    project_name = normalize_project_name(name)
+    project_dir = Path.cwd() / project_name
     try:
         project_dir.mkdir()
     except FileExistsError as error:
@@ -44,7 +64,7 @@ def init(name: str) -> None:
     (project_dir / "solution.py").write_text(SOLUTION_TEMPLATE, encoding="utf-8")
     (project_dir / "cases.toml").write_text(CASE_TEMPLATE, encoding="utf-8")
 
-    console.print(f"Created {project_dir}")
+    console.print(f"Created [bold green]{project_name}[/bold green]")
 
 
 @app.command()
