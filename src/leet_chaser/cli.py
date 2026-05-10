@@ -6,7 +6,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from leet_chaser.case_file import CaseFileError, read_case_file
+from leet_chaser.case_file import CaseFileError
+from leet_chaser.runner import ProblemRunError, run_problem
 
 app = typer.Typer(help="Run LeetCode solutions against local test cases.")
 console = Console()
@@ -70,25 +71,46 @@ def init(name: str) -> None:
 
 
 @app.command()
-def run(solution: Path, cases: Path) -> None:
-    """Run a solution file against a TOML case file.
+def run(problem_dir: Path) -> None:
+    """Run a problem directory against its TOML case file.
 
     Args:
-        solution: Path to the Python solution file.
-        cases: Path to the TOML file containing test cases.
+        problem_dir: Directory containing ``solution.py`` and ``cases.toml``.
 
     Returns:
         None.
     """
     try:
-        case_file = read_case_file(cases)
+        result = run_problem(problem_dir)
     except CaseFileError as error:
-        raise typer.BadParameter(str(error), param_hint="cases") from error
+        raise typer.BadParameter(str(error), param_hint="problem_dir") from error
+    except ProblemRunError as error:
+        raise typer.BadParameter(str(error), param_hint="problem_dir") from error
 
-    console.print(f"Solution: {solution}")
-    console.print(f"Cases: {cases}")
-    console.print(f"Entrypoint: {case_file.entrypoint}")
-    console.print(f"Loaded {len(case_file.cases)} test case(s).")
+    console.print(f"Solution: {result.solution_path}")
+    console.print(f"Cases: {result.cases_path}")
+    console.print(f"Entrypoint: {result.entrypoint}")
+
+    for test_case in result.passed:
+        console.print(f"[green]PASS[/green] case {test_case.index}")
+    for test_case in result.failed:
+        console.print(
+            f"[red]FAIL[/red] case {test_case.index}: "
+            f"expected={test_case.expected!r}, actual={test_case.actual!r}"
+        )
+    for test_case in result.errors:
+        console.print(
+            f"[red]ERROR[/red] case {test_case.index}: "
+            f"expected={test_case.expected!r}, "
+            f"{test_case.error_type}: {test_case.error_message}"
+        )
+
+    console.print(
+        f"Summary: {len(result.passed)}/{result.total_count} passed, "
+        f"{len(result.failed)} failed, {len(result.errors)} error(s)."
+    )
+    if result.has_failures:
+        raise typer.Exit(code=1)
 
 
 def main() -> None:

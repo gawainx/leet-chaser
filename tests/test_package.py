@@ -130,3 +130,82 @@ def test_init_rejects_existing_directory(tmp_path: Path, monkeypatch: pytest.Mon
 
     assert result.exit_code != 0
     assert "directory already exists" in result.output
+
+
+def test_run_command_executes_problem_directory(tmp_path: Path) -> None:
+    """Verify run accepts a problem directory and reports passing cases.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "two-sum"
+    problem_dir.mkdir()
+    (problem_dir / "solution.py").write_text(
+        """
+class Solution:
+    def twoSum(self, nums, target):
+        return [0, 1]
+""",
+        encoding="utf-8",
+    )
+    (problem_dir / "cases.toml").write_text(
+        """
+entrypoint = "twoSum"
+
+[[cases]]
+input = [[2, 7], 9]
+output = [0, 1]
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["run", str(problem_dir)], catch_exceptions=False, env={})
+
+    assert result.exit_code == 0
+    assert "PASS case 1" in result.output
+    assert "Summary: 1/1 passed, 0 failed, 0 error(s)." in result.output
+
+
+def test_run_command_returns_nonzero_after_collecting_failures(tmp_path: Path) -> None:
+    """Verify run reports every failed case before returning a non-zero code.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "failures"
+    problem_dir.mkdir()
+    (problem_dir / "solution.py").write_text(
+        """
+class Solution:
+    def echo(self, value):
+        return value
+""",
+        encoding="utf-8",
+    )
+    (problem_dir / "cases.toml").write_text(
+        """
+entrypoint = "echo"
+
+[[cases]]
+input = ["first"]
+output = "expected-first"
+
+[[cases]]
+input = ["second"]
+output = "expected-second"
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["run", str(problem_dir)], env={})
+
+    assert result.exit_code == 1
+    assert "FAIL case 1" in result.output
+    assert "FAIL case 2" in result.output
+    assert "Summary: 0/2 passed, 2 failed, 0 error(s)." in result.output

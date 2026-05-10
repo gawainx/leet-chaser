@@ -55,5 +55,5 @@ output = "fl"
 ### STEP 4: 运行验证
 
 ```shell
-leet-chaser run solution.py cases.toml
+leet-chaser run .
 ```
