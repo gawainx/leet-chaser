@@ -1,1 +1,2 @@
 - (3ce49975) : 2026.05.10 完成 TOML 测试用例读写能力，新增 leet_chaser.case_file 模块负责 Case 数据结构、读取、写入与结构校验，CLI run 命令已接入用例加载并输出数量；补充 tests/test_case_file.py 覆盖复杂 LeetCode 输入输出、写入回读和非法结构报错，同时在 docs/test-case-toml.md 记录需求内容、设计和实现方法。
+- (da704a93) : 2026.05.10 完成 run 命令输出增强与标准示例补充，新增 examples/two-sum 目录提供 LeetCode 两数之和的 solution.py 和 cases.toml，README 同步真实用例与示例运行命令；runner 结果结构补充 input 字段，CLI 使用 Rich Table 汇总失败和异常用例的输入、预期输出与实际输出，tests/test_package.py 和 tests/test_runner.py 已覆盖表格输出与结果结构变化。
