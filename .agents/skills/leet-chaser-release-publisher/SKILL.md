@@ -45,7 +45,11 @@ If the worktree has changes unrelated to version release files, show the changed
 - `src/leet_chaser/__init__.py`: `__version__`
 - `tests/test_package.py`: expected `__version__`
 
-Stop if these versions are inconsistent.
+Use `pyproject.toml` as the release base version. If the package metadata, runtime
+`__version__`, or version assertion are inconsistent, do not stop only because of
+that mismatch. Record the mismatch and normalize every version reference to the
+computed next version in step 4. Stop only if `pyproject.toml` is missing,
+unparseable, or does not contain a valid semantic version.
 
 3. Compute the next version:
 
@@ -60,6 +64,21 @@ Create the tag name as `vX.Y.Z`.
 - `pyproject.toml`
 - `src/leet_chaser/__init__.py`
 - `tests/test_package.py`
+- `uv.lock`, if `uv run`, `uv lock`, or `uv build` updates the editable package version
+
+After computing `X.Y.Z`, proactively search for stale project version references
+and update them before validation:
+
+```shell
+rg "0\\.OLD_MINOR\\.OLD_PATCH|__version__|version =" pyproject.toml src tests uv.lock
+```
+
+The three required references must all point to `X.Y.Z` before running release
+validation:
+
+- `pyproject.toml`: `version = "X.Y.Z"`
+- `src/leet_chaser/__init__.py`: `__version__ = "X.Y.Z"`
+- `tests/test_package.py`: `assert __version__ == "X.Y.Z"`
 
 5. Validate:
 
@@ -82,6 +101,9 @@ Stop before commit/tag/push if validation fails.
 git add pyproject.toml src/leet_chaser/__init__.py tests/test_package.py
 git commit -m "chore: release version X.Y.Z"
 ```
+
+If `uv.lock` changed only because the editable `leet-chaser` package version was
+normalized to `X.Y.Z`, include it in the release commit.
 
 The commit message must satisfy the repository commit firewall: allowed type, at least 10 description characters, concrete version detail, and no amend.
 
