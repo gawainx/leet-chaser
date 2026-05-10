@@ -170,7 +170,7 @@ output = [0, 1]
 
 
 def test_run_command_returns_nonzero_after_collecting_failures(tmp_path: Path) -> None:
-    """Verify run reports every failed case before returning a non-zero code.
+    """Verify run prints a table for failed cases before returning a non-zero code.
 
     Args:
         tmp_path: Temporary directory provided by pytest.
@@ -206,6 +206,14 @@ output = "expected-second"
     result = runner.invoke(app, ["run", str(problem_dir)], env={})
 
     assert result.exit_code == 1
-    assert "FAIL case 1" in result.output
-    assert "FAIL case 2" in result.output
+    assert "Failed Cases" in result.output
+    assert "Input" in result.output
+    assert "Expected" in result.output
+    assert "Actual" in result.output
+    assert "['first']" in result.output
+    assert "'expected-first'" in result.output
+    assert "'first'" in result.output
+    assert "['second']" in result.output
+    assert "'expected-second'" in result.output
+    assert "'second'" in result.output
     assert "Summary: 0/2 passed, 2 failed, 0 error(s)." in result.output

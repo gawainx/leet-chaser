@@ -48,12 +48,24 @@ input = [[2, 7, 11, 15], 9]
 output = [0, 1]
 
 [[cases]]
-input = [["flower", "flow", "flight"]]
-output = "fl"
+input = [[3, 2, 4], 6]
+output = [1, 2]
+
+[[cases]]
+input = [[3, 3], 6]
+output = [0, 1]
 ```
 
 ### STEP 4: 运行验证
 
 ```shell
 leet-chaser run .
+```
+
+## 标准示例
+
+仓库内置了 LeetCode 1. Two Sum 的标准示例：
+
+```shell
+uv run leet-chaser run examples/two-sum
 ```

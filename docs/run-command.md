@@ -44,8 +44,8 @@ result = getattr(instance, entrypoint)(*case.input)
 
 失败处理采用跑完所有用例再汇总的方式：
 
-- 返回值和期望值不相等时，记录该 case 的 expected 和 actual。
-- case 调用过程中抛异常时，记录该 case 的异常类型和异常信息。
+- 返回值和期望值不相等时，记录该 case 的 input、expected 和 actual。
+- case 调用过程中抛异常时，记录该 case 的 input、expected、异常类型和异常信息。
 - `solution.py` 导入失败、`Solution` 不存在、`entrypoint` 不存在时属于整体运行错误，命令无法进入 case 循环。
 
 退出码规则：
@@ -65,11 +65,11 @@ result = getattr(instance, entrypoint)(*case.input)
 
 运行结果使用结构化数据表达，便于 CLI 输出和单元测试断言：
 
-- 通过 case 记录 case index、expected 和 actual。
-- 失败 case 记录 case index、expected、actual。
-- 异常 case 记录 case index、expected、异常类型和异常信息。
+- 通过 case 记录 case index、input、expected 和 actual。
+- 失败 case 记录 case index、input、expected、actual。
+- 异常 case 记录 case index、input、expected、异常类型和异常信息。
 
-CLI `run` 命令只负责参数处理、调用核心运行逻辑、打印汇总结果和设置退出码。核心逻辑不直接依赖 Rich 输出，方便测试。
+CLI `run` 命令只负责参数处理、调用核心运行逻辑、打印汇总结果和设置退出码。存在失败或异常时，CLI 使用 Rich Table 输出失败用例表格，每一行展示 case index、input、expected 和 actual。核心逻辑不直接依赖 Rich 输出，方便测试。
 
 测试覆盖：
 

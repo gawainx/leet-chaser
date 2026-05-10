@@ -19,11 +19,13 @@ class PassedCaseResult:
 
     Attributes:
         index: One-based case index from the case file.
+        input: Positional arguments passed to the solution method.
         expected: Expected value configured in ``cases.toml``.
         actual: Actual value returned by the solution method.
     """
 
     index: int
+    input: list[Any]
     expected: Any
     actual: Any
 
@@ -34,11 +36,13 @@ class FailedCaseResult:
 
     Attributes:
         index: One-based case index from the case file.
+        input: Positional arguments passed to the solution method.
         expected: Expected value configured in ``cases.toml``.
         actual: Actual value returned by the solution method.
     """
 
     index: int
+    input: list[Any]
     expected: Any
     actual: Any
 
@@ -49,12 +53,14 @@ class ErrorCaseResult:
 
     Attributes:
         index: One-based case index from the case file.
+        input: Positional arguments passed to the solution method.
         expected: Expected value configured in ``cases.toml``.
         error_type: Exception class name raised by the case.
         error_message: String representation of the raised exception.
     """
 
     index: int
+    input: list[Any]
     expected: Any
     error_type: str
     error_message: str
@@ -219,6 +225,7 @@ def run_cases(
             errors.append(
                 ErrorCaseResult(
                     index=index,
+                    input=test_case.input,
                     expected=test_case.output,
                     error_type=type(error).__name__,
                     error_message=str(error),
@@ -227,8 +234,22 @@ def run_cases(
             continue
 
         if actual == test_case.output:
-            passed.append(PassedCaseResult(index=index, expected=test_case.output, actual=actual))
+            passed.append(
+                PassedCaseResult(
+                    index=index,
+                    input=test_case.input,
+                    expected=test_case.output,
+                    actual=actual,
+                )
+            )
         else:
-            failed.append(FailedCaseResult(index=index, expected=test_case.output, actual=actual))
+            failed.append(
+                FailedCaseResult(
+                    index=index,
+                    input=test_case.input,
+                    expected=test_case.output,
+                    actual=actual,
+                )
+            )
 
     return passed, failed, errors

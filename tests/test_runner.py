@@ -189,8 +189,8 @@ output = "later-expected"
 
     assert result.passed[0].index == 3
     assert result.failed == [
-        FailedCaseResult(index=1, expected="expected", actual="wrong"),
-        FailedCaseResult(index=4, expected="later-expected", actual="later-wrong"),
+        FailedCaseResult(index=1, input=["wrong"], expected="expected", actual="wrong"),
+        FailedCaseResult(index=4, input=["later-wrong"], expected="later-expected", actual="later-wrong"),
     ]
     assert len(result.errors) == 1
     assert result.errors[0].index == 2

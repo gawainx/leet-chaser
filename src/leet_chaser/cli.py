@@ -2,12 +2,14 @@
 
 import re
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
+from rich.table import Table
 
 from leet_chaser.case_file import CaseFileError
-from leet_chaser.runner import ProblemRunError, run_problem
+from leet_chaser.runner import ProblemRunError, ProblemRunResult, run_problem
 
 app = typer.Typer(help="Run LeetCode solutions against local test cases.")
 console = Console()
@@ -93,17 +95,8 @@ def run(problem_dir: Path) -> None:
 
     for test_case in result.passed:
         console.print(f"[green]PASS[/green] case {test_case.index}")
-    for test_case in result.failed:
-        console.print(
-            f"[red]FAIL[/red] case {test_case.index}: "
-            f"expected={test_case.expected!r}, actual={test_case.actual!r}"
-        )
-    for test_case in result.errors:
-        console.print(
-            f"[red]ERROR[/red] case {test_case.index}: "
-            f"expected={test_case.expected!r}, "
-            f"{test_case.error_type}: {test_case.error_message}"
-        )
+    if result.has_failures:
+        console.print(build_failure_table(result))
 
     console.print(
         f"Summary: {len(result.passed)}/{result.total_count} passed, "
@@ -111,6 +104,50 @@ def run(problem_dir: Path) -> None:
     )
     if result.has_failures:
         raise typer.Exit(code=1)
+
+
+def build_failure_table(result: ProblemRunResult) -> Table:
+    """Build a table for failed and errored cases.
+
+    Args:
+        result: Structured run result containing failed or errored cases.
+
+    Returns:
+        Rich table with case index, input, expected output, and actual output.
+    """
+    table = Table(title="Failed Cases")
+    table.add_column("Case", justify="right")
+    table.add_column("Input")
+    table.add_column("Expected")
+    table.add_column("Actual")
+
+    for test_case in result.failed:
+        table.add_row(
+            str(test_case.index),
+            format_value(test_case.input),
+            format_value(test_case.expected),
+            format_value(test_case.actual),
+        )
+    for test_case in result.errors:
+        table.add_row(
+            str(test_case.index),
+            format_value(test_case.input),
+            format_value(test_case.expected),
+            f"{test_case.error_type}: {test_case.error_message}",
+        )
+    return table
+
+
+def format_value(value: Any) -> str:
+    """Format a Python value for CLI table output.
+
+    Args:
+        value: Value to display in the run output.
+
+    Returns:
+        Repr-formatted value.
+    """
+    return repr(value)
 
 
 def main() -> None:
