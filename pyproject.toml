@@ -47,4 +47,5 @@ pythonpath = ["src"]
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "twine>=6.2.0",
 ]
