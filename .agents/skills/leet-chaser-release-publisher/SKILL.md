@@ -7,7 +7,20 @@ description: Use when working in the Leet-Chaser repository and the user asks to
 
 ## Scope
 
-Use only for `/Users/yat/code/leet-chaser`. Stop if the current repository is different.
+Use only for the Leet-Chaser repository. Do not rely on an absolute local path because the repository may live in different directories on different machines.
+
+Before making release changes, verify repository identity with all of these checks:
+
+```shell
+git remote get-url origin
+```
+
+- The `origin` URL must point to `gawainx/leet-chaser` using either HTTPS or SSH.
+- `pyproject.toml` must define `[project].name = "leet-chaser"`.
+- `src/leet_chaser/__init__.py` must exist.
+- `.github/workflows/publish.yml` must exist.
+
+Stop if any identity check fails.
 
 Default to a patch release unless the user explicitly says `minor`, `major`, or `patch`.
 

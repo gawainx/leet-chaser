@@ -2,6 +2,32 @@
 
 本地运行 leetcode solution 的命令行框架。
 
+## pip 安装运行
+
+```shell
+python -m pip install leet-chaser
+leet-chaser --help
+```
+
+安装后可以直接使用 `leet-chaser` 命令：
+
+```shell
+leet-chaser init two-sum
+cd two-sum
+leet-chaser run .
+```
+
+## uvx 直接运行
+
+不想把命令安装到当前环境时，可以用 `uvx` 临时运行：
+
+```shell
+uvx leet-chaser --help
+uvx leet-chaser init two-sum
+cd two-sum
+uvx leet-chaser run .
+```
+
 ## 使用方法
 
 ### STEP 1: 初始化题目目录
