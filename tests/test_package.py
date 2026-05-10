@@ -6,7 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from leet_chaser import __version__
-from leet_chaser.case_file import Case, read_case_file
+from leet_chaser.case_file import Case, CaseFile, read_case_file
 from leet_chaser.cli import app, normalize_project_name
 
 runner = CliRunner()
@@ -53,10 +53,13 @@ def test_init_creates_solution_workspace(tmp_path: Path, monkeypatch: pytest.Mon
     project_dir = tmp_path / "two-sum"
     assert result.exit_code == 0
     assert (project_dir / "solution.py").read_text(encoding="utf-8") == ""
-    assert read_case_file(project_dir / "cases.toml") == [
-        Case(input=[[2, 7, 11, 15], 9], output=[0, 1]),
-        Case(input=[["flower", "flow", "flight"]], output="fl"),
-    ]
+    assert read_case_file(project_dir / "cases.toml") == CaseFile(
+        entrypoint="twoSum",
+        cases=[
+            Case(input=[[2, 7, 11, 15], 9], output=[0, 1]),
+            Case(input=[["flower", "flow", "flight"]], output="fl"),
+        ],
+    )
     assert "Created two-sum" in result.output
 
 

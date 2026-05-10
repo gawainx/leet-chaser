@@ -38,9 +38,11 @@ class Solution:
 
 ### STEP 3: 填写 `cases.toml`
 
-`input` 是传给 solution 方法的位置参数数组，`output` 是期望返回值。
+`entrypoint` 是 solution 里的入口方法名。`input` 是传给入口方法的位置参数数组，`output` 是期望返回值。
 
 ```toml
+entrypoint = "twoSum"
+
 [[cases]]
 input = [[2, 7, 11, 15], 9]
 output = [0, 1]
