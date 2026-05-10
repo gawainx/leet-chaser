@@ -4,6 +4,14 @@
 
 ## 使用方法
 
+### STEP 0: 初始化题目目录
+
+```shell
+leet-chaser init two-sum
+```
+
+命令会在当前目录创建 `two-sum/solution.py` 和 `two-sum/cases.toml`。
+
 ### STEP 1 编写 solution 文件
 
 ```python
@@ -14,18 +22,17 @@ class Solution:
 
 ### STEP 2: 填写测试用例 `cases.toml`
 ```toml
-[[mappings]]
-input = "src_a"
-output = "dst_a"
+[[cases]]
+input = [[2, 7, 11, 15], 9]
+output = [0, 1]
 
-[[mappings]]
-input = "src_b"
-output = "dst_b"
+[[cases]]
+input = [["flower", "flow", "flight"]]
+output = "fl"
 ```
 
 ### STEP 3: 运行验证
 
 ```shell
-leet-chaser <solution.py> <case.toml>
+leet-chaser run <solution.py> <cases.toml>
 ```
-
