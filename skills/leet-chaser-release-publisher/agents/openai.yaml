@@ -1,0 +1,4 @@
+interface:
+  display_name: "Leet-Chaser Release Publisher"
+  short_description: "Release Leet-Chaser to PyPI through GitHub Actions."
+  default_prompt: "提交并发布版本"
