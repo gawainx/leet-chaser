@@ -1,3 +1,4 @@
 - (3ce49975) : 2026.05.10 完成 TOML 测试用例读写能力，新增 leet_chaser.case_file 模块负责 Case 数据结构、读取、写入与结构校验，CLI run 命令已接入用例加载并输出数量；补充 tests/test_case_file.py 覆盖复杂 LeetCode 输入输出、写入回读和非法结构报错，同时在 docs/test-case-toml.md 记录需求内容、设计和实现方法。
 - (da704a93) : 2026.05.10 完成 run 命令输出增强与标准示例补充，新增 examples/two-sum 目录提供 LeetCode 两数之和的 solution.py 和 cases.toml，README 同步真实用例与示例运行命令；runner 结果结构补充 input 字段，CLI 使用 Rich Table 汇总失败和异常用例的输入、预期输出与实际输出，tests/test_package.py 和 tests/test_runner.py 已覆盖表格输出与结果结构变化。
 - (9356ad0) : 2026.05.10 配置 GitHub Actions 自动化发布流程，新增 CI workflow 负责 master 与 Pull Request 的测试和构建，新增 publish workflow 负责 v* 标签触发的版本校验、测试、构建与 PyPI Trusted Publishing 发布；补充 docs/pypi-github-actions.md 记录 GitHub environment、PyPI Trusted Publisher 和版本标签发布步骤。
+- (9835066) : 2026.05.10 完成发布使用说明与项目发版技能修正，README 新增 pip 安装运行和 uvx 直接运行两个独立章节，便于用户从 PyPI 安装或临时执行 leet-chaser；同时调整 .agents/skills/leet-chaser-release-publisher/SKILL.md 的适用范围校验，改为基于 origin remote、pyproject 包名、核心包文件与发布 workflow 识别仓库，避免绑定单机绝对路径。
