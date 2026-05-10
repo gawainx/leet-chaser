@@ -6,9 +6,9 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 authors = [
-    { name = "Yat Leung", email = "liangyilx@gmail.com" },
+    { name = "Yat Leung", email = "jagdspica@gmail.com" },
 ]
-keywords = ["leetcode", "cli", "testing", "toml"]
+keywords = ["leetcode"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
