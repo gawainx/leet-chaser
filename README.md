@@ -88,6 +88,26 @@ output = [0, 1]
 leet-chaser run .
 ```
 
+### STEP 5: 调试单个用例
+
+把当前要排查的用例写入 `debug.toml`，格式和 `cases.toml` 一致，但只保留一个 `[[cases]]`：
+
+```toml
+entrypoint = "twoSum"
+
+[[cases]]
+input = [[2, 7, 11, 15], 9]
+output = [0, 1]
+```
+
+运行 debug 命令会默认读取当前题目目录下的 `debug.toml`，并逐行打印入口函数的变量变化：
+
+```shell
+leet-chaser debug .
+leet-chaser debug . -t seen -t rest
+leet-chaser debug . -c custom-debug.toml
+```
+
 ## 标准示例
 
 仓库内置了 LeetCode 1. Two Sum 的标准示例：

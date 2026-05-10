@@ -217,3 +217,78 @@ output = "expected-second"
     assert "'expected-second'" in result.output
     assert "'second'" in result.output
     assert "Summary: 0/2 passed, 2 failed, 0 error(s)." in result.output
+
+
+def test_debug_command_executes_default_debug_case(tmp_path: Path) -> None:
+    """Verify debug accepts a problem directory and reports one passing case.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "debug-two-sum"
+    problem_dir.mkdir()
+    (problem_dir / "solution.py").write_text(
+        """
+class Solution:
+    def twoSum(self, nums, target):
+        return [0, 1]
+""",
+        encoding="utf-8",
+    )
+    (problem_dir / "debug.toml").write_text(
+        """
+entrypoint = "twoSum"
+
+[[cases]]
+input = [[2, 7], 9]
+output = [0, 1]
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["debug", str(problem_dir), "-t", "nums"], catch_exceptions=False, env={})
+
+    assert result.exit_code == 0
+    assert "Case:" in result.output
+    assert "Entrypoint: twoSum" in result.output
+    assert "Trace: nums" in result.output
+    assert "PASS actual=[0, 1] expected=[0, 1]" in result.output
+
+
+def test_debug_command_returns_nonzero_for_failed_debug_case(tmp_path: Path) -> None:
+    """Verify debug returns a non-zero code when the single case fails.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "debug-failure"
+    problem_dir.mkdir()
+    (problem_dir / "solution.py").write_text(
+        """
+class Solution:
+    def echo(self, value):
+        return value
+""",
+        encoding="utf-8",
+    )
+    (problem_dir / "debug.toml").write_text(
+        """
+entrypoint = "echo"
+
+[[cases]]
+input = ["actual"]
+output = "expected"
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["debug", str(problem_dir)], env={})
+
+    assert result.exit_code == 1
+    assert "FAIL actual='actual' expected='expected'" in result.output

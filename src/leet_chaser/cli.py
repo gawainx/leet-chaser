@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from leet_chaser.case_file import CaseFileError
+from leet_chaser.debugger import ProblemDebugError, ProblemDebugResult, debug_problem
 from leet_chaser.runner import ProblemRunError, ProblemRunResult, run_problem
 
 app = typer.Typer(help="Run LeetCode solutions against local test cases.")
@@ -104,6 +105,66 @@ def run(problem_dir: Path) -> None:
     )
     if result.has_failures:
         raise typer.Exit(code=1)
+
+
+@app.command()
+def debug(
+    problem_dir: Path,
+    case_path: Path | None = typer.Option(
+        None,
+        "--case",
+        "-c",
+        help="Single-case TOML file. Defaults to <problem-dir>/debug.toml.",
+    ),
+    traces: list[str] | None = typer.Option(
+        None,
+        "--trace",
+        "-t",
+        help="Variable name or expression to watch. Can be passed multiple times.",
+    ),
+) -> None:
+    """Debug one problem case with line tracing enabled on the entrypoint.
+
+    Args:
+        problem_dir: Directory containing ``solution.py``.
+        case_path: TOML file containing exactly one debug case.
+        traces: Variable names or expressions to watch with snoop.
+
+    Returns:
+        None.
+    """
+    try:
+        result = debug_problem(problem_dir, case_path=case_path, traces=tuple(traces or ()))
+    except CaseFileError as error:
+        raise typer.BadParameter(str(error), param_hint="case") from error
+    except ProblemDebugError as error:
+        raise typer.BadParameter(str(error), param_hint="case") from error
+    except ProblemRunError as error:
+        raise typer.BadParameter(str(error), param_hint="problem_dir") from error
+
+    console.print(build_debug_summary(result))
+    if not result.passed:
+        raise typer.Exit(code=1)
+
+
+def build_debug_summary(result: ProblemDebugResult) -> str:
+    """Build a compact summary for one debug result.
+
+    Args:
+        result: Structured debug result for one case.
+
+    Returns:
+        Human-readable summary string.
+    """
+    status = "[green]PASS[/green]" if result.passed else "[red]FAIL[/red]"
+    trace_text = ", ".join(result.traces) if result.traces else "all local changes"
+    return (
+        f"Solution: {result.solution_path}\n"
+        f"Case: {result.case_path}\n"
+        f"Entrypoint: {result.entrypoint}\n"
+        f"Trace: {trace_text}\n"
+        f"{status} actual={format_value(result.actual)} expected={format_value(result.expected)}"
+    )
 
 
 def build_failure_table(result: ProblemRunResult) -> Table:
