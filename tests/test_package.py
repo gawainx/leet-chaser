@@ -21,7 +21,7 @@ def test_version_is_defined() -> None:
     Returns:
         None.
     """
-    assert __version__ == "0.1.2"
+    assert __version__ == "0.1.3"
 
 
 def test_cli_app_is_available() -> None:
