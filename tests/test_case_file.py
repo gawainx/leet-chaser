@@ -83,6 +83,27 @@ def test_write_case_file_round_trips_cases(tmp_path: Path) -> None:
     assert read_case_file(case_file) == source_case_file
 
 
+def test_write_case_file_round_trips_unordered_output(tmp_path: Path) -> None:
+    """Verify unordered output metadata can be written and read back.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    source_case_file = CaseFile(
+        entrypoint="threeSum",
+        cases=[Case(input=[[-1, 0, 1]], output=[[-1, 0, 1]])],
+        unordered_output=True,
+    )
+
+    write_case_file(case_file, source_case_file)
+
+    assert read_case_file(case_file) == source_case_file
+
+
 def test_read_case_file_parses_linked_list_type_metadata(tmp_path: Path) -> None:
     """Verify advanced linked-list type metadata converts input and output values.
 
@@ -210,6 +231,33 @@ output = [1, 3, 12, 0, 0]
 
     assert parsed_case_file.inplace_write is True
     assert parsed_case_file.inplace_index == 0
+
+
+def test_read_case_file_parses_unordered_output_metadata(tmp_path: Path) -> None:
+    """Verify unordered output metadata is parsed from top-level TOML fields.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+entrypoint = "threeSum"
+unordered_output = true
+
+[[cases]]
+input = [[-1, 0, 1, 2, -1, -4]]
+output = [[-1, -1, 2], [-1, 0, 1]]
+""",
+        encoding="utf-8",
+    )
+
+    parsed_case_file = read_case_file(case_file)
+
+    assert parsed_case_file.unordered_output is True
 
 
 def test_read_case_file_requires_entrypoint(tmp_path: Path) -> None:
@@ -455,4 +503,30 @@ output = [0]
     )
 
     with pytest.raises(CaseFileError, match="out of range"):
+        read_case_file(case_file)
+
+
+def test_read_case_file_rejects_non_boolean_unordered_output(tmp_path: Path) -> None:
+    """Verify unordered output mode must be configured as a boolean.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+entrypoint = "threeSum"
+unordered_output = "yes"
+
+[[cases]]
+input = [[0, 0, 0]]
+output = [[0, 0, 0]]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CaseFileError, match="unordered_output must be a boolean"):
         read_case_file(case_file)

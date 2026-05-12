@@ -1,3 +1,4 @@
+- (working) : 2026.05.12 完成顺序无关输出比较支持，新增顶级 unordered_output 元数据，run 命令在开启后会递归忽略列表元素顺序，覆盖三数之和这类外层结果顺序和三元组内部顺序都不重要的题目；默认仍保持严格顺序比较，README、docs/test-case-toml.md、设计文档和开发计划已补充说明，tests/test_case_file.py 与 tests/test_runner.py 已覆盖解析、写回、成功和失败场景。
 - (3ce49975) : 2026.05.10 完成 TOML 测试用例读写能力，新增 leet_chaser.case_file 模块负责 Case 数据结构、读取、写入与结构校验，CLI run 命令已接入用例加载并输出数量；补充 tests/test_case_file.py 覆盖复杂 LeetCode 输入输出、写入回读和非法结构报错，同时在 docs/test-case-toml.md 记录需求内容、设计和实现方法。
 - (da704a93) : 2026.05.10 完成 run 命令输出增强与标准示例补充，新增 examples/two-sum 目录提供 LeetCode 两数之和的 solution.py 和 cases.toml，README 同步真实用例与示例运行命令；runner 结果结构补充 input 字段，CLI 使用 Rich Table 汇总失败和异常用例的输入、预期输出与实际输出，tests/test_package.py 和 tests/test_runner.py 已覆盖表格输出与结果结构变化。
 - (9356ad0) : 2026.05.10 配置 GitHub Actions 自动化发布流程，新增 CI workflow 负责 master 与 Pull Request 的测试和构建，新增 publish workflow 负责 v* 标签触发的版本校验、测试、构建与 PyPI Trusted Publishing 发布；补充 docs/pypi-github-actions.md 记录 GitHub environment、PyPI Trusted Publisher 和版本标签发布步骤。

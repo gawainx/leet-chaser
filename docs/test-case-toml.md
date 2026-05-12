@@ -48,3 +48,18 @@ output = "fl"
 读取使用 Python 3.12 内置 `tomllib`。写入使用 `tomli-w`，保持实现简单，避免手写 TOML 序列化逻辑。
 
 CLI 的 `run` 命令已经接入读取逻辑，会在执行前加载 case 文件，并在文件结构不合法时给出参数错误。
+
+### 顺序无关输出
+
+三数之和这类题目的输出约束允许外层结果顺序和三元组内部顺序不同。case 文件可以通过顶层 `unordered_output = true` 开启递归顺序无关比较：
+
+```toml
+entrypoint = "threeSum"
+unordered_output = true
+
+[[cases]]
+input = [[-1, 0, 1, 2, -1, -4]]
+output = [[-1, -1, 2], [-1, 0, 1]]
+```
+
+默认值为 `false`，所以 two-sum 这类顺序有意义的输出仍按原列表顺序严格比较。

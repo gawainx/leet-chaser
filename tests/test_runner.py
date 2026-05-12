@@ -351,6 +351,103 @@ output = [1, 3, 12, 0, 0]
     assert "return value was ignored" in result.warnings[0].message
 
 
+def test_run_problem_compares_unordered_three_sum_output(tmp_path: Path) -> None:
+    """Verify unordered output ignores outer and inner list order.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "three-sum"
+    write_problem(
+        problem_dir,
+        """
+class Solution:
+    def threeSum(self, nums):
+        return [[1, 0, -1], [2, -1, -1]]
+""",
+        """
+entrypoint = "threeSum"
+unordered_output = true
+
+[[cases]]
+input = [[-1, 0, 1, 2, -1, -4]]
+output = [[-1, -1, 2], [-1, 0, 1]]
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert not result.has_failures
+
+
+def test_run_problem_detects_missing_unordered_output_item(tmp_path: Path) -> None:
+    """Verify unordered output still fails when a result item is missing.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "three-sum-missing"
+    write_problem(
+        problem_dir,
+        """
+class Solution:
+    def threeSum(self, nums):
+        return [[-1, 0, 1]]
+""",
+        """
+entrypoint = "threeSum"
+unordered_output = true
+
+[[cases]]
+input = [[-1, 0, 1, 2, -1, -4]]
+output = [[-1, -1, 2], [-1, 0, 1]]
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert result.has_failures
+    assert result.failed[0].expected == [[-1, -1, 2], [-1, 0, 1]]
+    assert result.failed[0].actual == [[-1, 0, 1]]
+
+
+def test_run_problem_keeps_ordered_output_strict_by_default(tmp_path: Path) -> None:
+    """Verify list output order still matters without unordered metadata.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "ordered-default"
+    write_problem(
+        problem_dir,
+        """
+class Solution:
+    def values(self):
+        return [2, 1]
+""",
+        """
+entrypoint = "values"
+
+[[cases]]
+input = []
+output = [1, 2]
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert result.has_failures
+
+
 def test_run_problem_requires_solution_class(tmp_path: Path) -> None:
     """Verify a missing Solution class is a run error.
 

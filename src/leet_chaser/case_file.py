@@ -44,6 +44,7 @@ class CaseFile:
         output_type: Expected parsing type for output values.
         inplace_write: Whether comparisons should use a mutated input argument.
         inplace_index: Zero-based input argument index used for inplace comparison.
+        unordered_output: Whether list output comparisons should ignore element order.
     """
 
     entrypoint: str
@@ -52,6 +53,7 @@ class CaseFile:
     output_type: str = RAW_TYPE_NAME
     inplace_write: bool = False
     inplace_index: int | None = None
+    unordered_output: bool = False
 
 
 class CaseFileError(ValueError):
@@ -103,6 +105,8 @@ def write_case_file(path: Path, case_file: CaseFile) -> None:
     if case_file.inplace_write:
         data["inplace_write"] = case_file.inplace_write
         data["inplace_index"] = case_file.inplace_index
+    if case_file.unordered_output:
+        data["unordered_output"] = case_file.unordered_output
     path.write_text(tomli_w.dumps(data), encoding="utf-8")
 
 
@@ -123,6 +127,7 @@ def parse_case_data(data: dict[str, Any]) -> CaseFile:
     output_type = _parse_case_type(data.get("output_type"), "output_type")
     inplace_write = _parse_inplace_write(data.get("inplace_write"))
     inplace_index = _parse_inplace_index(data.get("inplace_index"), inplace_write)
+    unordered_output = _parse_unordered_output(data.get("unordered_output"))
 
     raw_cases = data.get("cases")
     if not isinstance(raw_cases, list):
@@ -140,6 +145,7 @@ def parse_case_data(data: dict[str, Any]) -> CaseFile:
         output_type=output_type,
         inplace_write=inplace_write,
         inplace_index=inplace_index,
+        unordered_output=unordered_output,
     )
 
 
@@ -199,6 +205,25 @@ def _parse_inplace_write(raw_inplace_write: Any) -> bool:
     if not isinstance(raw_inplace_write, bool):
         raise CaseFileError("inplace_write must be a boolean")
     return raw_inplace_write
+
+
+def _parse_unordered_output(raw_unordered_output: Any) -> bool:
+    """Parse the top-level unordered output flag.
+
+    Args:
+        raw_unordered_output: Raw ``unordered_output`` value loaded from TOML.
+
+    Returns:
+        True when list output comparison should ignore element order.
+
+    Raises:
+        CaseFileError: If the value is not a boolean.
+    """
+    if raw_unordered_output is None:
+        return False
+    if not isinstance(raw_unordered_output, bool):
+        raise CaseFileError("unordered_output must be a boolean")
+    return raw_unordered_output
 
 
 def _parse_inplace_index(raw_inplace_index: Any, inplace_write: bool) -> int | None:

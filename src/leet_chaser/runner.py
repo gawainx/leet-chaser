@@ -257,7 +257,7 @@ def run_cases(
         expected = normalize_case_value(test_case.output, test_case.output_type)
         actual_result = normalize_case_value(actual, test_case.output_type)
 
-        if actual_result == expected:
+        if compare_case_values(actual_result, expected, case_file):
             passed.append(
                 PassedCaseResult(
                     index=index,
@@ -319,3 +319,47 @@ def normalize_case_value(value: Any, value_type: str) -> Any:
     if value_type in LINKED_TYPE_NAMES:
         return normalize_linked_value(value, value_type)
     return value
+
+
+def compare_case_values(actual: Any, expected: Any, case_file: CaseFile) -> bool:
+    """Compare normalized actual and expected values for one case.
+
+    Args:
+        actual: Normalized value returned by the solution.
+        expected: Normalized value configured in ``cases.toml``.
+        case_file: Case file metadata that selects comparison behavior.
+
+    Returns:
+        True when the values match under the selected comparison mode.
+    """
+    if not case_file.unordered_output:
+        return actual == expected
+    return unordered_case_key(actual) == unordered_case_key(expected)
+
+
+def unordered_case_key(value: Any) -> Any:
+    """Build a recursively order-insensitive comparison key.
+
+    Args:
+        value: Value to convert into a comparable key.
+
+    Returns:
+        A stable key where list element order does not affect equality.
+    """
+    if isinstance(value, list):
+        unordered_items = (unordered_case_key(item) for item in value)
+        return ("list", tuple(sorted(unordered_items, key=repr)))
+    if isinstance(value, dict):
+        return (
+            "dict",
+            tuple(
+                sorted(
+                    (
+                        (unordered_case_key(key), unordered_case_key(item))
+                        for key, item in value.items()
+                    ),
+                    key=repr,
+                )
+            ),
+        )
+    return ("value", value)

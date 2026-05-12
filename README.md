@@ -107,6 +107,19 @@ output = [1, 3, 12, 0, 0]
 
 `inplace_index` 使用 0-based 参数下标。开启 `inplace_write` 后，返回值会被忽略；如果返回值不是 `None`，命令行会打印 warning。
 
+三数之和这类输出顺序不重要的题目可以开启顺序无关输出比较：
+
+```toml
+entrypoint = "threeSum"
+unordered_output = true
+
+[[cases]]
+input = [[-1, 0, 1, 2, -1, -4]]
+output = [[-1, -1, 2], [-1, 0, 1]]
+```
+
+开启 `unordered_output` 后，列表输出会递归忽略元素顺序；未开启时仍按原始列表顺序严格比较。
+
 ### STEP 4: 运行验证
 
 ```shell
