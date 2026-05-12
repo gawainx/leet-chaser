@@ -169,6 +169,23 @@ output = [0, 1]
     assert "Summary: 1/1 passed, 0 failed, 0 error(s)." in result.output
 
 
+def test_reverse_linked_list_example_runs_successfully() -> None:
+    """Verify the LeetCode 206 linked-list example stays runnable.
+
+    Args:
+        None.
+
+    Returns:
+        None.
+    """
+    example_dir = Path("examples/reverse-linked-list")
+
+    result = runner.invoke(app, ["run", str(example_dir)], catch_exceptions=False, env={})
+
+    assert result.exit_code == 0
+    assert "Summary: 3/3 passed, 0 failed, 0 error(s)." in result.output
+
+
 def test_run_command_returns_nonzero_after_collecting_failures(tmp_path: Path) -> None:
     """Verify run prints a table for failed cases before returning a non-zero code.
 

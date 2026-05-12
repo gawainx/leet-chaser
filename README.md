@@ -126,3 +126,9 @@ leet-chaser debug two-sum -c two-sum/custom-debug.toml
 ```shell
 uv run leet-chaser run examples/two-sum
 ```
+
+也内置了 LeetCode 206. Reverse Linked List 示例，用来展示 `linked_list` 类型元数据：
+
+```shell
+uv run leet-chaser run examples/reverse-linked-list
+```
