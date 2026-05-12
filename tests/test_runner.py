@@ -198,6 +198,82 @@ output = "later-expected"
     assert result.errors[0].error_message == "broken case"
 
 
+def test_run_problem_normalizes_linked_list_output(tmp_path: Path) -> None:
+    """Verify linked-list outputs compare as arrays.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "reverse-list"
+    write_problem(
+        problem_dir,
+        """
+class Solution:
+    def reverseList(self, head):
+        previous = None
+        current = head
+        while current is not None:
+            next_node = current.next
+            current.next = previous
+            previous = current
+            current = next_node
+        return previous
+""",
+        """
+entrypoint = "reverseList"
+input_types = ["linked_list"]
+output_type = "linked_list"
+
+[[cases]]
+input = [[1, 2, 3]]
+output = [3, 2, 1]
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert not result.has_failures
+    assert result.passed[0].expected == [3, 2, 1]
+    assert result.passed[0].actual == [3, 2, 1]
+
+
+def test_run_problem_normalizes_circular_linked_list_output(tmp_path: Path) -> None:
+    """Verify circular linked-list outputs compare by values and cycle position.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "identity-cycle"
+    write_problem(
+        problem_dir,
+        """
+class Solution:
+    def identity(self, head):
+        return head
+""",
+        """
+entrypoint = "identity"
+input_types = ["circular_linked_list"]
+output_type = "circular_linked_list"
+
+[[cases]]
+input = [{ values = [3, 2, 0, -4], pos = 1 }]
+output = { values = [3, 2, 0, -4], pos = 1 }
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert not result.has_failures
+    assert result.passed[0].actual == {"values": [3, 2, 0, -4], "pos": 1}
+
+
 def test_run_problem_requires_solution_class(tmp_path: Path) -> None:
     """Verify a missing Solution class is a run error.
 

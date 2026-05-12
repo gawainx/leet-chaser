@@ -166,3 +166,43 @@ output = "second"
 
     with pytest.raises(ProblemDebugError, match="exactly one"):
         debug_problem(problem_dir)
+
+
+def test_debug_problem_normalizes_linked_list_output(tmp_path: Path) -> None:
+    """Verify debug pass/fail checks normalize linked-list outputs.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "reverse-list"
+    write_debug_problem(
+        problem_dir,
+        """
+class Solution:
+    def reverseList(self, head):
+        previous = None
+        current = head
+        while current is not None:
+            next_node = current.next
+            current.next = previous
+            previous = current
+            current = next_node
+        return previous
+""",
+        """
+entrypoint = "reverseList"
+input_types = ["linked_list"]
+output_type = "linked_list"
+
+[[cases]]
+input = [[1, 2, 3]]
+output = [3, 2, 1]
+""",
+    )
+
+    result = debug_problem(problem_dir)
+
+    assert result.passed

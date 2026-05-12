@@ -79,6 +79,20 @@ input = [[3, 3], 6]
 output = [0, 1]
 ```
 
+链表题可以通过顶级类型元数据把数组解析成节点对象：
+
+```toml
+entrypoint = "reverseList"
+input_types = ["linked_list"]
+output_type = "linked_list"
+
+[[cases]]
+input = [[1, 2, 3]]
+output = [3, 2, 1]
+```
+
+更多单链表、双向链表和循环链表写法见 [docs/advanced-case-types.md](docs/advanced-case-types.md)。
+
 ### STEP 4: 运行验证
 
 ```shell

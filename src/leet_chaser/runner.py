@@ -7,6 +7,7 @@ from types import ModuleType
 from typing import Any
 
 from leet_chaser.case_file import Case, read_case_file
+from leet_chaser.linked_types import LINKED_TYPE_NAMES, normalize_linked_value
 
 
 class ProblemRunError(ValueError):
@@ -233,13 +234,16 @@ def run_cases(
             )
             continue
 
-        if actual == test_case.output:
+        expected = normalize_case_value(test_case.output, test_case.output_type)
+        actual_result = normalize_case_value(actual, test_case.output_type)
+
+        if actual_result == expected:
             passed.append(
                 PassedCaseResult(
                     index=index,
                     input=test_case.input,
-                    expected=test_case.output,
-                    actual=actual,
+                    expected=expected,
+                    actual=actual_result,
                 )
             )
         else:
@@ -247,9 +251,24 @@ def run_cases(
                 FailedCaseResult(
                     index=index,
                     input=test_case.input,
-                    expected=test_case.output,
-                    actual=actual,
+                    expected=expected,
+                    actual=actual_result,
                 )
             )
 
     return passed, failed, errors
+
+
+def normalize_case_value(value: Any, value_type: str) -> Any:
+    """Normalize a case value before comparison and display.
+
+    Args:
+        value: Raw value returned by a solution or parsed from TOML.
+        value_type: Type metadata attached to the case output.
+
+    Returns:
+        Comparable value for the selected type.
+    """
+    if value_type in LINKED_TYPE_NAMES:
+        return normalize_linked_value(value, value_type)
+    return value

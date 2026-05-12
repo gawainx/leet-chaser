@@ -7,7 +7,12 @@ from typing import Any
 import snoop
 
 from leet_chaser.case_file import read_case_file
-from leet_chaser.runner import ProblemRunError, load_solution_module, resolve_solution_method
+from leet_chaser.runner import (
+    ProblemRunError,
+    load_solution_module,
+    normalize_case_value,
+    resolve_solution_method,
+)
 
 
 class ProblemDebugError(ValueError):
@@ -25,6 +30,7 @@ class ProblemDebugResult:
         input: Positional arguments passed to the solution method.
         expected: Expected value configured in the debug case file.
         actual: Actual value returned by the solution method.
+        output_type: Expected parsing type for output comparison.
         traces: Watched snoop expressions requested by the user.
     """
 
@@ -34,6 +40,7 @@ class ProblemDebugResult:
     input: list[Any]
     expected: Any
     actual: Any
+    output_type: str
     traces: tuple[str, ...]
 
     @property
@@ -46,7 +53,10 @@ class ProblemDebugResult:
         Returns:
             True when the actual value equals the expected value.
         """
-        return self.actual == self.expected
+        return normalize_case_value(self.actual, self.output_type) == normalize_case_value(
+            self.expected,
+            self.output_type,
+        )
 
 
 def debug_problem(
@@ -97,5 +107,6 @@ def debug_problem(
         input=test_case.input,
         expected=test_case.output,
         actual=actual,
+        output_type=test_case.output_type,
         traces=traces,
     )
