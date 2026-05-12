@@ -206,3 +206,39 @@ output = [3, 2, 1]
     result = debug_problem(problem_dir)
 
     assert result.passed
+
+
+def test_debug_problem_compares_inplace_input_after_solution_call(tmp_path: Path) -> None:
+    """Verify debug cases can compare mutated input arguments.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "move-zeroes"
+    write_debug_problem(
+        problem_dir,
+        """
+class Solution:
+    def moveZeroes(self, nums):
+        nums.sort(key=lambda value: value == 0)
+        return ["ignored"]
+""",
+        """
+entrypoint = "moveZeroes"
+inplace_write = true
+inplace_index = 0
+
+[[cases]]
+input = [[0, 1, 0, 3, 12]]
+output = [1, 3, 12, 0, 0]
+""",
+    )
+
+    result = debug_problem(problem_dir)
+
+    assert result.passed
+    assert result.actual == [1, 3, 12, 0, 0]
+    assert "return value was ignored" in result.warnings[0].message

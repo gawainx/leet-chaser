@@ -42,12 +42,16 @@ class CaseFile:
         cases: Test cases for the entrypoint.
         input_types: Expected parsing types for input arguments.
         output_type: Expected parsing type for output values.
+        inplace_write: Whether comparisons should use a mutated input argument.
+        inplace_index: Zero-based input argument index used for inplace comparison.
     """
 
     entrypoint: str
     cases: list[Case]
     input_types: list[str] | None = None
     output_type: str = RAW_TYPE_NAME
+    inplace_write: bool = False
+    inplace_index: int | None = None
 
 
 class CaseFileError(ValueError):
@@ -96,6 +100,9 @@ def write_case_file(path: Path, case_file: CaseFile) -> None:
         data["input_types"] = case_file.input_types
     if case_file.output_type != RAW_TYPE_NAME:
         data["output_type"] = case_file.output_type
+    if case_file.inplace_write:
+        data["inplace_write"] = case_file.inplace_write
+        data["inplace_index"] = case_file.inplace_index
     path.write_text(tomli_w.dumps(data), encoding="utf-8")
 
 
@@ -114,6 +121,8 @@ def parse_case_data(data: dict[str, Any]) -> CaseFile:
     entrypoint = _parse_entrypoint(data.get("entrypoint"))
     input_types = _parse_input_types(data.get("input_types"))
     output_type = _parse_case_type(data.get("output_type"), "output_type")
+    inplace_write = _parse_inplace_write(data.get("inplace_write"))
+    inplace_index = _parse_inplace_index(data.get("inplace_index"), inplace_write)
 
     raw_cases = data.get("cases")
     if not isinstance(raw_cases, list):
@@ -123,7 +132,15 @@ def parse_case_data(data: dict[str, Any]) -> CaseFile:
         _parse_case(raw_case, index, input_types, output_type)
         for index, raw_case in enumerate(raw_cases, start=1)
     ]
-    return CaseFile(entrypoint=entrypoint, cases=cases, input_types=input_types, output_type=output_type)
+    _validate_inplace_index(cases, inplace_index)
+    return CaseFile(
+        entrypoint=entrypoint,
+        cases=cases,
+        input_types=input_types,
+        output_type=output_type,
+        inplace_write=inplace_write,
+        inplace_index=inplace_index,
+    )
 
 
 def _parse_entrypoint(raw_entrypoint: Any) -> str:
@@ -163,6 +180,71 @@ def _parse_input_types(raw_input_types: Any) -> list[str] | None:
         _parse_case_type(raw_input_type, f"input_types[{index}]")
         for index, raw_input_type in enumerate(raw_input_types)
     ]
+
+
+def _parse_inplace_write(raw_inplace_write: Any) -> bool:
+    """Parse the top-level inplace write flag.
+
+    Args:
+        raw_inplace_write: Raw ``inplace_write`` value loaded from TOML.
+
+    Returns:
+        True when cases should compare a mutated input argument.
+
+    Raises:
+        CaseFileError: If the value is not a boolean.
+    """
+    if raw_inplace_write is None:
+        return False
+    if not isinstance(raw_inplace_write, bool):
+        raise CaseFileError("inplace_write must be a boolean")
+    return raw_inplace_write
+
+
+def _parse_inplace_index(raw_inplace_index: Any, inplace_write: bool) -> int | None:
+    """Parse the top-level inplace input argument index.
+
+    Args:
+        raw_inplace_index: Raw ``inplace_index`` value loaded from TOML.
+        inplace_write: Whether the case file uses inplace comparison.
+
+    Returns:
+        A zero-based input argument index, or ``None`` for normal return comparison.
+
+    Raises:
+        CaseFileError: If the index is missing, disabled, or invalid.
+    """
+    if raw_inplace_index is None:
+        if inplace_write:
+            raise CaseFileError("inplace_index is required when inplace_write is true")
+        return None
+    if not inplace_write:
+        raise CaseFileError("inplace_index requires inplace_write to be true")
+    if not isinstance(raw_inplace_index, int) or isinstance(raw_inplace_index, bool):
+        raise CaseFileError("inplace_index must be a zero-based integer")
+    if raw_inplace_index < 0:
+        raise CaseFileError("inplace_index must be a zero-based integer")
+    return raw_inplace_index
+
+
+def _validate_inplace_index(cases: list[Case], inplace_index: int | None) -> None:
+    """Validate that the inplace index exists in every case input.
+
+    Args:
+        cases: Parsed cases from the TOML file.
+        inplace_index: Zero-based input argument index used for inplace comparison.
+
+    Returns:
+        None.
+
+    Raises:
+        CaseFileError: If any case does not contain the selected input argument.
+    """
+    if inplace_index is None:
+        return
+    for index, test_case in enumerate(cases, start=1):
+        if inplace_index >= len(test_case.input):
+            raise CaseFileError(f"inplace_index is out of range for cases[{index}].input")
 
 
 def _parse_case_type(raw_case_type: Any, field_name: str) -> str:

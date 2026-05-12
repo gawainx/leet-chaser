@@ -93,6 +93,20 @@ output = [3, 2, 1]
 
 更多单链表、双向链表和循环链表写法见 [docs/advanced-case-types.md](docs/advanced-case-types.md)。
 
+原地修改数组的题目可以通过顶级原地写入元数据比较被修改后的输入参数：
+
+```toml
+entrypoint = "moveZeroes"
+inplace_write = true
+inplace_index = 0
+
+[[cases]]
+input = [[0, 1, 0, 3, 12]]
+output = [1, 3, 12, 0, 0]
+```
+
+`inplace_index` 使用 0-based 参数下标。开启 `inplace_write` 后，返回值会被忽略；如果返回值不是 `None`，命令行会打印 warning。
+
 ### STEP 4: 运行验证
 
 ```shell

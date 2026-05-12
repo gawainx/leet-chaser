@@ -274,6 +274,83 @@ output = { values = [3, 2, 0, -4], pos = 1 }
     assert result.passed[0].actual == {"values": [3, 2, 0, -4], "pos": 1}
 
 
+def test_run_problem_compares_inplace_input_after_solution_call(tmp_path: Path) -> None:
+    """Verify inplace write cases compare the mutated input argument.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "move-zeroes"
+    write_problem(
+        problem_dir,
+        """
+class Solution:
+    def moveZeroes(self, nums):
+        insert_at = 0
+        for value in nums:
+            if value != 0:
+                nums[insert_at] = value
+                insert_at += 1
+        for index in range(insert_at, len(nums)):
+            nums[index] = 0
+""",
+        """
+entrypoint = "moveZeroes"
+inplace_write = true
+inplace_index = 0
+
+[[cases]]
+input = [[0, 1, 0, 3, 12]]
+output = [1, 3, 12, 0, 0]
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert not result.has_failures
+    assert result.passed[0].actual == [1, 3, 12, 0, 0]
+
+
+def test_run_problem_warns_when_inplace_case_returns_value(tmp_path: Path) -> None:
+    """Verify non-None return values are ignored and reported for inplace cases.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "move-zeroes-return"
+    write_problem(
+        problem_dir,
+        """
+class Solution:
+    def moveZeroes(self, nums):
+        nums.sort(key=lambda value: value == 0)
+        return ["ignored"]
+""",
+        """
+entrypoint = "moveZeroes"
+inplace_write = true
+inplace_index = 0
+
+[[cases]]
+input = [[0, 1, 0, 3, 12]]
+output = [1, 3, 12, 0, 0]
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert not result.has_failures
+    assert result.passed[0].actual == [1, 3, 12, 0, 0]
+    assert result.warnings[0].index == 1
+    assert "return value was ignored" in result.warnings[0].message
+
+
 def test_run_problem_requires_solution_class(tmp_path: Path) -> None:
     """Verify a missing Solution class is a run error.
 

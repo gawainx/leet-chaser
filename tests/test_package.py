@@ -236,6 +236,47 @@ output = "expected-second"
     assert "Summary: 0/2 passed, 2 failed, 0 error(s)." in result.output
 
 
+def test_run_command_prints_inplace_return_warning(tmp_path: Path) -> None:
+    """Verify run reports ignored return values for inplace write cases.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "move-zeroes-warning"
+    problem_dir.mkdir()
+    (problem_dir / "solution.py").write_text(
+        """
+class Solution:
+    def moveZeroes(self, nums):
+        nums.sort(key=lambda value: value == 0)
+        return ["ignored"]
+""",
+        encoding="utf-8",
+    )
+    (problem_dir / "cases.toml").write_text(
+        """
+entrypoint = "moveZeroes"
+inplace_write = true
+inplace_index = 0
+
+[[cases]]
+input = [[0, 1, 0, 3, 12]]
+output = [1, 3, 12, 0, 0]
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["run", str(problem_dir)], catch_exceptions=False, env={})
+
+    assert result.exit_code == 0
+    assert "WARNING case 1" in result.output
+    assert "return value was ignored" in result.output
+    assert "PASS case 1" in result.output
+
+
 def test_debug_command_executes_default_debug_case(tmp_path: Path) -> None:
     """Verify debug accepts a problem directory and reports one passing case.
 
@@ -273,6 +314,47 @@ output = [0, 1]
     assert "Entrypoint: twoSum" in result.output
     assert "Trace: nums" in result.output
     assert "PASS actual=[0, 1] expected=[0, 1]" in result.output
+
+
+def test_debug_command_prints_inplace_return_warning(tmp_path: Path) -> None:
+    """Verify debug reports ignored return values for inplace write cases.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "debug-move-zeroes-warning"
+    problem_dir.mkdir()
+    (problem_dir / "solution.py").write_text(
+        """
+class Solution:
+    def moveZeroes(self, nums):
+        nums.sort(key=lambda value: value == 0)
+        return ["ignored"]
+""",
+        encoding="utf-8",
+    )
+    (problem_dir / "debug.toml").write_text(
+        """
+entrypoint = "moveZeroes"
+inplace_write = true
+inplace_index = 0
+
+[[cases]]
+input = [[0, 1, 0, 3, 12]]
+output = [1, 3, 12, 0, 0]
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["debug", str(problem_dir)], catch_exceptions=False, env={})
+
+    assert result.exit_code == 0
+    assert "WARNING case 1" in result.output
+    assert "return value was ignored" in result.output
+    assert "PASS actual=[1, 3, 12, 0, 0] expected=[1, 3, 12, 0, 0]" in result.output
 
 
 def test_debug_command_returns_nonzero_for_failed_debug_case(tmp_path: Path) -> None:

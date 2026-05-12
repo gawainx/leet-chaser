@@ -94,6 +94,7 @@ def run(problem_dir: Path) -> None:
     console.print(f"Cases: {result.cases_path}")
     console.print(f"Entrypoint: {result.entrypoint}")
 
+    print_warnings(result.warnings)
     for test_case in result.passed:
         console.print(f"[green]PASS[/green] case {test_case.index}")
     if result.has_failures:
@@ -142,9 +143,23 @@ def debug(
     except ProblemRunError as error:
         raise typer.BadParameter(str(error), param_hint="problem_dir") from error
 
+    print_warnings(result.warnings)
     console.print(build_debug_summary(result))
     if not result.passed:
         raise typer.Exit(code=1)
+
+
+def print_warnings(warnings: list[Any]) -> None:
+    """Print non-fatal case warnings with Rich styling.
+
+    Args:
+        warnings: Warning objects with ``index`` and ``message`` attributes.
+
+    Returns:
+        None.
+    """
+    for warning in warnings:
+        console.print(f"[yellow]WARNING[/yellow] case {warning.index}: {warning.message}")
 
 
 def build_debug_summary(result: ProblemDebugResult) -> str:

@@ -101,3 +101,22 @@ output = [4, 5, 1, 2, 3]
 ```
 
 没有声明 `input_types` 或 `output_type` 时，行为和旧版本一致。
+
+## 原地写入
+
+数组原地修改类题目可以在 TOML 顶级声明原地写入比较：
+
+```toml
+entrypoint = "moveZeroes"
+inplace_write = true
+inplace_index = 0
+
+[[cases]]
+input = [[0, 1, 0, 3, 12]]
+output = [1, 3, 12, 0, 0]
+```
+
+- `inplace_write`：可选布尔值，默认 `false`。
+- `inplace_index`：0-based 输入参数下标；`inplace_write = true` 时必填。
+
+开启后，Leet-Chaser 会在调用 solution 后取 `input[inplace_index]` 作为实际结果，再和 `output` 比较。返回值会被忽略；如果返回值不是 `None`，`run` 和 `debug` 会打印 warning。

@@ -6,7 +6,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from leet_chaser.case_file import Case, read_case_file
+from leet_chaser.case_file import Case, CaseFile, read_case_file
 from leet_chaser.linked_types import LINKED_TYPE_NAMES, normalize_linked_value
 
 
@@ -71,6 +71,19 @@ CaseResult = PassedCaseResult | FailedCaseResult | ErrorCaseResult
 
 
 @dataclass(frozen=True)
+class CaseWarning:
+    """A non-fatal warning produced while running a case.
+
+    Attributes:
+        index: One-based case index from the case file.
+        message: Human-readable warning message.
+    """
+
+    index: int
+    message: str
+
+
+@dataclass(frozen=True)
 class ProblemRunResult:
     """Result summary for one problem directory run.
 
@@ -81,6 +94,7 @@ class ProblemRunResult:
         passed: Cases that returned the expected value.
         failed: Cases that returned a different value.
         errors: Cases that raised exceptions while executing.
+        warnings: Non-fatal warnings emitted while executing cases.
     """
 
     solution_path: Path
@@ -89,6 +103,7 @@ class ProblemRunResult:
     passed: list[PassedCaseResult]
     failed: list[FailedCaseResult]
     errors: list[ErrorCaseResult]
+    warnings: list[CaseWarning]
 
     @property
     def total_count(self) -> int:
@@ -139,7 +154,7 @@ def run_problem(problem_dir: Path) -> ProblemRunResult:
     case_file = read_case_file(cases_path)
     module = load_solution_module(solution_path)
     solution_class, method_name = resolve_solution_method(module, case_file.entrypoint)
-    passed, failed, errors = run_cases(solution_class, method_name, case_file.cases)
+    passed, failed, errors, warnings = run_cases(solution_class, method_name, case_file)
     return ProblemRunResult(
         solution_path=solution_path,
         cases_path=cases_path,
@@ -147,6 +162,7 @@ def run_problem(problem_dir: Path) -> ProblemRunResult:
         passed=passed,
         failed=failed,
         errors=errors,
+        warnings=warnings,
     )
 
 
@@ -201,27 +217,29 @@ def resolve_solution_method(module: ModuleType, entrypoint: str) -> tuple[type[A
 def run_cases(
     solution_class: type[Any],
     entrypoint: str,
-    cases: list[Case],
-) -> tuple[list[PassedCaseResult], list[FailedCaseResult], list[ErrorCaseResult]]:
+    case_file: CaseFile,
+) -> tuple[list[PassedCaseResult], list[FailedCaseResult], list[ErrorCaseResult], list[CaseWarning]]:
     """Run all cases against fresh ``Solution`` instances.
 
     Args:
         solution_class: Class to instantiate once per case.
         entrypoint: Method name to call on each instance.
-        cases: Test cases loaded from ``cases.toml``.
+        case_file: Test cases and comparison metadata loaded from ``cases.toml``.
 
     Returns:
-        Passed, failed, and errored case result lists.
+        Passed, failed, errored, and warning result lists.
     """
     passed: list[PassedCaseResult] = []
     failed: list[FailedCaseResult] = []
     errors: list[ErrorCaseResult] = []
+    warnings: list[CaseWarning] = []
 
-    for index, test_case in enumerate(cases, start=1):
+    for index, test_case in enumerate(case_file.cases, start=1):
         try:
             solution = solution_class()
             method = getattr(solution, entrypoint)
-            actual = method(*test_case.input)
+            returned_value = method(*test_case.input)
+            actual, warning = select_actual_result(test_case, case_file, returned_value)
         except Exception as error:
             errors.append(
                 ErrorCaseResult(
@@ -234,6 +252,8 @@ def run_cases(
             )
             continue
 
+        if warning is not None:
+            warnings.append(CaseWarning(index=index, message=warning))
         expected = normalize_case_value(test_case.output, test_case.output_type)
         actual_result = normalize_case_value(actual, test_case.output_type)
 
@@ -256,7 +276,34 @@ def run_cases(
                 )
             )
 
-    return passed, failed, errors
+    return passed, failed, errors, warnings
+
+
+def select_actual_result(test_case: Case, case_file: CaseFile, returned_value: Any) -> tuple[Any, str | None]:
+    """Select the value used for case comparison.
+
+    Args:
+        test_case: Case whose inputs may have been mutated by the solution.
+        case_file: Parsed case file containing inplace comparison metadata.
+        returned_value: Value returned by the solution method.
+
+    Returns:
+        Actual comparison value and an optional warning message.
+    """
+    if not case_file.inplace_write:
+        return returned_value, None
+
+    inplace_index = case_file.inplace_index
+    if inplace_index is None:
+        return returned_value, None
+
+    actual = test_case.input[inplace_index]
+    if returned_value is None:
+        return actual, None
+    return actual, (
+        "inplace_write is true, so the solution return value was ignored "
+        f"and input[{inplace_index}] was compared"
+    )
 
 
 def normalize_case_value(value: Any, value_type: str) -> Any:

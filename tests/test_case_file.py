@@ -183,6 +183,35 @@ output = { values = [3, 2, 0, -4], pos = 1 }
     }
 
 
+def test_read_case_file_parses_inplace_write_metadata(tmp_path: Path) -> None:
+    """Verify inplace write metadata is parsed from top-level TOML fields.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+entrypoint = "moveZeroes"
+inplace_write = true
+inplace_index = 0
+
+[[cases]]
+input = [[0, 1, 0, 3, 12]]
+output = [1, 3, 12, 0, 0]
+""",
+        encoding="utf-8",
+    )
+
+    parsed_case_file = read_case_file(case_file)
+
+    assert parsed_case_file.inplace_write is True
+    assert parsed_case_file.inplace_index == 0
+
+
 def test_read_case_file_requires_entrypoint(tmp_path: Path) -> None:
     """Verify files without an entrypoint fail with a clear error.
 
@@ -347,4 +376,83 @@ output = false
     )
 
     with pytest.raises(CaseFileError, match=r"pos must be -1"):
+        read_case_file(case_file)
+
+
+def test_read_case_file_requires_inplace_index_when_enabled(tmp_path: Path) -> None:
+    """Verify inplace write mode requires a selected input index.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+entrypoint = "moveZeroes"
+inplace_write = true
+
+[[cases]]
+input = [[0]]
+output = [0]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CaseFileError, match="inplace_index is required"):
+        read_case_file(case_file)
+
+
+def test_read_case_file_rejects_inplace_index_without_inplace_write(tmp_path: Path) -> None:
+    """Verify inplace index cannot be configured without inplace write mode.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+entrypoint = "moveZeroes"
+inplace_index = 0
+
+[[cases]]
+input = [[0]]
+output = [0]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CaseFileError, match="requires inplace_write"):
+        read_case_file(case_file)
+
+
+def test_read_case_file_rejects_out_of_range_inplace_index(tmp_path: Path) -> None:
+    """Verify inplace index must exist in every case input.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+entrypoint = "moveZeroes"
+inplace_write = true
+inplace_index = 1
+
+[[cases]]
+input = [[0]]
+output = [0]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CaseFileError, match="out of range"):
         read_case_file(case_file)

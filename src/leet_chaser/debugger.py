@@ -8,10 +8,12 @@ import snoop
 
 from leet_chaser.case_file import read_case_file
 from leet_chaser.runner import (
+    CaseWarning,
     ProblemRunError,
     load_solution_module,
     normalize_case_value,
     resolve_solution_method,
+    select_actual_result,
 )
 
 
@@ -32,6 +34,7 @@ class ProblemDebugResult:
         actual: Actual value returned by the solution method.
         output_type: Expected parsing type for output comparison.
         traces: Watched snoop expressions requested by the user.
+        warnings: Non-fatal warnings emitted while executing the case.
     """
 
     solution_path: Path
@@ -42,6 +45,7 @@ class ProblemDebugResult:
     actual: Any
     output_type: str
     traces: tuple[str, ...]
+    warnings: list[CaseWarning]
 
     @property
     def passed(self) -> bool:
@@ -98,7 +102,9 @@ def debug_problem(
     solution = solution_class()
     method = getattr(solution, method_name)
     traced_method = snoop.snoop(watch=traces)(method)
-    actual = traced_method(*test_case.input)
+    returned_value = traced_method(*test_case.input)
+    actual, warning = select_actual_result(test_case, case_file, returned_value)
+    warnings = [CaseWarning(index=1, message=warning)] if warning is not None else []
 
     return ProblemDebugResult(
         solution_path=solution_path,
@@ -109,4 +115,5 @@ def debug_problem(
         actual=actual,
         output_type=test_case.output_type,
         traces=traces,
+        warnings=warnings,
     )
