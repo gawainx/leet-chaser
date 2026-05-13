@@ -20,6 +20,12 @@ output_type = "linked_list"
 - `circular_linked_list`：循环单链表，节点包含 `val` 和 `next`。
 - `binary_tree`：二叉树，节点包含 `val`、`left` 和 `right`。
 
+刷题时可以从统一模块导入节点类型：
+
+```python
+from leet_chaser.lt_typing import DoublyListNode, ListNode, TreeNode
+```
+
 ## 单链表
 
 ```toml

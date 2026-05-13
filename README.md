@@ -104,6 +104,12 @@ output = false
 
 更多单链表、双向链表、循环链表和二叉树写法见 [docs/advanced-case-types.md](docs/advanced-case-types.md)。
 
+刷题时可以直接导入内置节点类型：
+
+```python
+from leet_chaser.lt_typing import ListNode, TreeNode
+```
+
 原地修改数组的题目可以通过顶级原地写入元数据比较被修改后的输入参数：
 
 ```toml

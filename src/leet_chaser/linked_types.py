@@ -1,35 +1,8 @@
-"""Linked-list node types and conversion helpers for LeetCode-style cases."""
+"""Linked-list conversion helpers for LeetCode-style cases."""
 
-from dataclasses import dataclass
 from typing import Any
 
-
-@dataclass(eq=False)
-class ListNode:
-    """A LeetCode-style singly linked-list node.
-
-    Attributes:
-        val: Value stored in the node.
-        next: Next node in the list, or ``None`` for the tail.
-    """
-
-    val: Any = 0
-    next: "ListNode | None" = None
-
-
-@dataclass(eq=False)
-class DoublyListNode:
-    """A LeetCode-style doubly linked-list node.
-
-    Attributes:
-        val: Value stored in the node.
-        prev: Previous node in the list, or ``None`` for the head.
-        next: Next node in the list, or ``None`` for the tail.
-    """
-
-    val: Any = 0
-    prev: "DoublyListNode | None" = None
-    next: "DoublyListNode | None" = None
+from leet_chaser.lt_typing import DoublyListNode, ListNode
 
 
 LINKED_TYPE_NAMES = frozenset(

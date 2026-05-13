@@ -1,27 +1,13 @@
 """Binary-tree node types and conversion helpers for LeetCode-style cases."""
 
 from collections import deque
-from dataclasses import dataclass
 from typing import Any
+
+from leet_chaser.lt_typing import TreeNode
 
 BINARY_TREE_TYPE_NAME = "binary_tree"
 TREE_NULL_VALUE = "null"
 TREE_TYPE_NAMES = frozenset({BINARY_TREE_TYPE_NAME})
-
-
-@dataclass(eq=False)
-class TreeNode:
-    """A LeetCode-style binary-tree node.
-
-    Attributes:
-        val: Value stored in the node.
-        left: Left child node, or ``None`` when no left child exists.
-        right: Right child node, or ``None`` when no right child exists.
-    """
-
-    val: Any = 0
-    left: "TreeNode | None" = None
-    right: "TreeNode | None" = None
 
 
 def build_binary_tree(values: list[Any]) -> TreeNode | None:
