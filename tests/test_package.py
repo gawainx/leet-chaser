@@ -7,7 +7,8 @@ from typer.testing import CliRunner
 
 from leet_chaser import __version__
 from leet_chaser.case_file import Case, CaseFile, read_case_file
-from leet_chaser.cli import app, normalize_project_name
+from leet_chaser.cli import app, normalize_project_name, resolve_init_case_type
+from leet_chaser.tree_types import binary_tree_to_array
 
 runner = CliRunner()
 
@@ -61,6 +62,105 @@ def test_init_creates_solution_workspace(tmp_path: Path, monkeypatch: pytest.Mon
         ],
     )
     assert "Created two-sum" in result.output
+
+
+def test_init_creates_linked_list_case_template(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify init can create a linked-list case template.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+        monkeypatch: Pytest helper used to run the command from tmp_path.
+
+    Returns:
+        None.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["init", "reverse-list", "-t", "linklist"],
+        catch_exceptions=False,
+        env={},
+    )
+
+    project_dir = tmp_path / "reverse-list"
+    parsed_case_file = read_case_file(project_dir / "cases.toml")
+    assert result.exit_code == 0
+    assert parsed_case_file.entrypoint == "reverseList"
+    assert parsed_case_file.input_types == ["linked_list"]
+    assert parsed_case_file.output_type == "linked_list"
+    assert len(parsed_case_file.cases) == 2
+
+
+def test_init_creates_binary_tree_case_template(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify init can create a binary-tree case template from a fuzzy alias.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+        monkeypatch: Pytest helper used to run the command from tmp_path.
+
+    Returns:
+        None.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["init", "validate-bst", "--type", "bitree"],
+        catch_exceptions=False,
+        env={},
+    )
+
+    project_dir = tmp_path / "validate-bst"
+    parsed_case_file = read_case_file(project_dir / "cases.toml")
+    assert result.exit_code == 0
+    assert parsed_case_file.entrypoint == "isValidBST"
+    assert parsed_case_file.input_types == ["binary_tree"]
+    assert parsed_case_file.output_type == "raw"
+    assert binary_tree_to_array(parsed_case_file.cases[1].input[0]) == [
+        5,
+        1,
+        4,
+        "null",
+        "null",
+        3,
+        6,
+    ]
+
+
+def test_init_rejects_unknown_case_template_type(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify unknown init template types fail before writing a workspace.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+        monkeypatch: Pytest helper used to run the command from tmp_path.
+
+    Returns:
+        None.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["init", "heap-problem", "-t", "heap"], env={})
+
+    assert result.exit_code != 0
+    assert "type must be one of" in result.output
+    assert not (tmp_path / "heap-problem").exists()
+
+
+def test_resolve_init_case_type_accepts_fuzzy_aliases() -> None:
+    """Verify init type matching ignores separators and common spelling variants.
+
+    Args:
+        None.
+
+    Returns:
+        None.
+    """
+    assert resolve_init_case_type(None) == "raw"
+    assert resolve_init_case_type("linked-list") == "linked_list"
+    assert resolve_init_case_type("ListNode") == "linked_list"
+    assert resolve_init_case_type("binary_tree") == "binary_tree"
+    assert resolve_init_case_type("tree") == "binary_tree"
 
 
 def test_normalize_project_name_replaces_special_symbols() -> None:

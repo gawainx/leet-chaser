@@ -15,7 +15,8 @@ from leet_chaser.runner import ErrorCaseResult, ProblemRunError, ProblemRunResul
 app = typer.Typer(help="Run LeetCode solutions against local test cases.")
 console = Console()
 
-CASE_TEMPLATE = """entrypoint = "twoSum"
+CASE_TEMPLATE_BY_TYPE = {
+    "raw": """entrypoint = "twoSum"
 
 [[cases]]
 input = [[2, 7, 11, 15], 9]
@@ -24,7 +25,51 @@ output = [0, 1]
 [[cases]]
 input = [["flower", "flow", "flight"]]
 output = "fl"
-"""
+""",
+    "linked_list": """entrypoint = "reverseList"
+input_types = ["linked_list"]
+output_type = "linked_list"
+
+[[cases]]
+input = [[1, 2, 3, 4, 5]]
+output = [5, 4, 3, 2, 1]
+
+[[cases]]
+input = [[]]
+output = []
+""",
+    "binary_tree": """entrypoint = "isValidBST"
+input_types = ["binary_tree"]
+
+[[cases]]
+input = [[2, 1, 3]]
+output = true
+
+[[cases]]
+input = [[5, 1, 4, "null", "null", 3, 6]]
+output = false
+
+[[cases]]
+input = [[]]
+output = true
+""",
+}
+CASE_TYPE_ALIASES = {
+    "array": "raw",
+    "default": "raw",
+    "raw": "raw",
+    "linked": "linked_list",
+    "linkedlist": "linked_list",
+    "linkednode": "linked_list",
+    "linklist": "linked_list",
+    "list": "linked_list",
+    "listnode": "linked_list",
+    "binarytree": "binary_tree",
+    "binarytreenode": "binary_tree",
+    "bitree": "binary_tree",
+    "tree": "binary_tree",
+    "treenode": "binary_tree",
+}
 
 SOLUTION_TEMPLATE = ""
 
@@ -47,17 +92,52 @@ def normalize_project_name(name: str) -> str:
     return normalized_name
 
 
+def resolve_init_case_type(raw_case_type: str | None) -> str:
+    """Resolve an init template type from a fuzzy command-line value.
+
+    Args:
+        raw_case_type: Optional user-provided type name from ``-t/--type``.
+
+    Returns:
+        Internal case template type name.
+
+    Raises:
+        typer.BadParameter: If the type name cannot be resolved.
+    """
+    if raw_case_type is None:
+        return "raw"
+
+    normalized_type = re.sub(r"[^0-9A-Za-z]+", "", raw_case_type).lower()
+    case_type = CASE_TYPE_ALIASES.get(normalized_type)
+    if case_type is None:
+        raise typer.BadParameter(
+            "type must be one of: linklist, linked_list, bitree, binary_tree, tree",
+            param_hint="type",
+        )
+    return case_type
+
+
 @app.command()
-def init(name: str) -> None:
+def init(
+    name: str,
+    case_type: str | None = typer.Option(
+        None,
+        "--type",
+        "-t",
+        help="Case template type. Supports fuzzy values like linklist, bitree, or tree.",
+    ),
+) -> None:
     """Create a solution workspace in the current directory.
 
     Args:
         name: Name of the child directory to create.
+        case_type: Optional fuzzy case template type for advanced input metadata.
 
     Returns:
         None.
     """
     project_name = normalize_project_name(name)
+    resolved_case_type = resolve_init_case_type(case_type)
     project_dir = Path.cwd() / project_name
     try:
         project_dir.mkdir()
@@ -68,7 +148,10 @@ def init(name: str) -> None:
         ) from error
 
     (project_dir / "solution.py").write_text(SOLUTION_TEMPLATE, encoding="utf-8")
-    (project_dir / "cases.toml").write_text(CASE_TEMPLATE, encoding="utf-8")
+    (project_dir / "cases.toml").write_text(
+        CASE_TEMPLATE_BY_TYPE[resolved_case_type],
+        encoding="utf-8",
+    )
 
     console.print(f"Created [bold green]{project_name}[/bold green]")
 

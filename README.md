@@ -34,6 +34,14 @@ uvx leet-chaser run two-sum
 leet-chaser init two-sum
 ```
 
+链表或二叉树题可以用 `-t` 生成带高级类型元数据的模板：
+
+```shell
+leet-chaser init reverse-list -t linklist
+leet-chaser init validate-bst -t bitree
+leet-chaser init level-order -t tree
+```
+
 命令会在当前目录创建一个题目文件夹：
 
 ```text
@@ -62,6 +70,8 @@ class Solution:
 ### STEP 3: 填写 `cases.toml`
 
 `entrypoint` 是 solution 里的入口方法名。`input` 是传给入口方法的位置参数数组，`output` 是期望返回值。
+
+使用 `init -t` 时，生成的 `cases.toml` 会默认把每个 case 的第一个参数声明为对应高级类型。
 
 ```toml
 entrypoint = "twoSum"
