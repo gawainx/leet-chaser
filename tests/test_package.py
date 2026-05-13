@@ -128,6 +128,36 @@ def test_init_creates_binary_tree_case_template(tmp_path: Path, monkeypatch: pyt
     ]
 
 
+def test_init_creates_matrix_case_template(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify init can create a two-dimensional matrix case template.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+        monkeypatch: Pytest helper used to run the command from tmp_path.
+
+    Returns:
+        None.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["init", "search-matrix", "--type", "matrix"],
+        catch_exceptions=False,
+        env={},
+    )
+
+    project_dir = tmp_path / "search-matrix"
+    parsed_case_file = read_case_file(project_dir / "cases.toml")
+    assert result.exit_code == 0
+    assert parsed_case_file.entrypoint == "searchMatrix"
+    assert parsed_case_file.input_types is None
+    assert parsed_case_file.cases[0] == Case(
+        input=[[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 3],
+        output=True,
+    )
+
+
 def test_init_rejects_unknown_case_template_type(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify unknown init template types fail before writing a workspace.
 
@@ -161,6 +191,8 @@ def test_resolve_init_case_type_accepts_fuzzy_aliases() -> None:
     assert resolve_init_case_type("ListNode") == "linked_list"
     assert resolve_init_case_type("binary_tree") == "binary_tree"
     assert resolve_init_case_type("tree") == "binary_tree"
+    assert resolve_init_case_type("2d-array") == "matrix"
+    assert resolve_init_case_type("grid") == "matrix"
 
 
 def test_normalize_project_name_replaces_special_symbols() -> None:

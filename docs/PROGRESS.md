@@ -1,3 +1,4 @@
+- (working) : 2026.05.13 补充 init 矩阵模板，`-t matrix`、`-t grid` 和 `-t 2d-array` 会生成二维数组输入示例，不额外声明 `input_types`；README、docs/init-command.md、init 设计文档和开发计划已更新，tests/test_package.py 覆盖矩阵模板解析和 alias。
 - (working) : 2026.05.13 改善 run 命令 case 异常输出，runner 在 ErrorCaseResult 中保留完整 traceback，CLI 将普通失败表格和异常详情分开展示；混合运行时先打印正常 case 与失败表格，再按 case 输出所有异常堆栈，最后打印汇总，tests/test_runner.py 和 tests/test_package.py 已覆盖 traceback 内容与输出顺序。
 - (working) : 2026.05.13 优化 init 命令，新增 `-t/--type` 参数，可用 linklist、linked_list、listnode、bitree、binary_tree、tree 等模糊别名生成链表或二叉树高级类型 TOML 模板；默认不传类型仍保持 two-sum 模板，生成的高级模板默认每个 case 的第一个参数为特殊类型；README、docs/init-command.md、设计文档和开发计划已更新，tests/test_package.py 覆盖 alias、模板内容和非法类型。
 - (working) : 2026.05.13 新增 leet_chaser.lt_typing 统一节点类型模块，集中导出 ListNode、DoublyListNode 和 TreeNode，内部 linked_types/tree_types 复用同一批数据类，方便 solution.py 在刷题时直接导入；README 和 docs/advanced-case-types.md 已补充导入示例，tests/test_lt_typing.py 覆盖公开导入和内部类型兼容。

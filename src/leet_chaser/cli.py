@@ -53,6 +53,16 @@ output = false
 input = [[]]
 output = true
 """,
+    "matrix": """entrypoint = "searchMatrix"
+
+[[cases]]
+input = [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 3]
+output = true
+
+[[cases]]
+input = [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 13]
+output = false
+""",
 }
 CASE_TYPE_ALIASES = {
     "array": "raw",
@@ -69,6 +79,11 @@ CASE_TYPE_ALIASES = {
     "bitree": "binary_tree",
     "tree": "binary_tree",
     "treenode": "binary_tree",
+    "2darray": "matrix",
+    "grid": "matrix",
+    "matrix": "matrix",
+    "twodarray": "matrix",
+    "twodimensionalarray": "matrix",
 }
 
 SOLUTION_TEMPLATE = ""
@@ -111,7 +126,7 @@ def resolve_init_case_type(raw_case_type: str | None) -> str:
     case_type = CASE_TYPE_ALIASES.get(normalized_type)
     if case_type is None:
         raise typer.BadParameter(
-            "type must be one of: linklist, linked_list, bitree, binary_tree, tree",
+            "type must be one of: linklist, linked_list, bitree, binary_tree, tree, matrix",
             param_hint="type",
         )
     return case_type
@@ -124,7 +139,7 @@ def init(
         None,
         "--type",
         "-t",
-        help="Case template type. Supports fuzzy values like linklist, bitree, or tree.",
+        help="Case template type. Supports fuzzy values like linklist, bitree, tree, or matrix.",
     ),
 ) -> None:
     """Create a solution workspace in the current directory.
