@@ -170,3 +170,9 @@ uv run leet-chaser run examples/two-sum
 ```shell
 uv run leet-chaser run examples/reverse-linked-list
 ```
+
+LeetCode 98. Validate Binary Search Tree 示例展示了 `binary_tree` 类型元数据：
+
+```shell
+uv run leet-chaser run examples/validate-binary-search-tree
+```

@@ -1,0 +1,14 @@
+entrypoint = "isValidBST"
+input_types = ["binary_tree"]
+
+[[cases]]
+input = [[2, 1, 3]]
+output = true
+
+[[cases]]
+input = [[5, 1, 4, "null", "null", 3, 6]]
+output = false
+
+[[cases]]
+input = [[]]
+output = true
