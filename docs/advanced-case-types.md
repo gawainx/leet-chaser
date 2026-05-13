@@ -1,6 +1,6 @@
 # Advanced Case Types
 
-Leet-Chaser 默认按 TOML 基础类型解析 `input` 和 `output`。当 LeetCode 题目用数组展示输入，但实际方法参数是链表节点时，可以在 TOML 顶级增加类型元数据。
+Leet-Chaser 默认按 TOML 基础类型解析 `input` 和 `output`。当 LeetCode 题目用数组展示输入，但实际方法参数是链表或二叉树节点时，可以在 TOML 顶级增加类型元数据。
 
 ## 字段
 
@@ -18,6 +18,7 @@ output_type = "linked_list"
 - `linked_list`：单链表，节点包含 `val` 和 `next`。
 - `doubly_linked_list`：双向链表，节点包含 `val`、`prev` 和 `next`。
 - `circular_linked_list`：循环单链表，节点包含 `val` 和 `next`。
+- `binary_tree`：二叉树，节点包含 `val`、`left` 和 `right`。
 
 ## 单链表
 
@@ -85,6 +86,48 @@ output = { values = [3, 2, 0, -4], pos = 1 }
 ```
 
 当输出类型是 `circular_linked_list` 时，Leet-Chaser 会把实际返回值归一化为 `{ values = [...], pos = n }` 后比较，避免无限遍历。
+
+## 二叉树
+
+二叉树使用 LeetCode 层序数组表示。TOML 数组不能直接写 `null`，空节点使用字符串 `"null"`：
+
+```toml
+entrypoint = "isValidBST"
+input_types = ["binary_tree"]
+
+[[cases]]
+input = [[5, 1, 4, "null", "null", 3, 6]]
+output = false
+```
+
+solution 收到的 `root` 是 `TreeNode | None`。空数组会解析为 `None`。
+
+```python
+class Solution:
+    def isValidBST(self, root):
+        def walk(node, lower, upper):
+            if node is None:
+                return True
+            if not lower < node.val < upper:
+                return False
+            return walk(node.left, lower, node.val) and walk(node.right, node.val, upper)
+
+        return walk(root, float("-inf"), float("inf"))
+```
+
+返回二叉树的题目可以声明 `output_type = "binary_tree"`：
+
+```toml
+entrypoint = "invertTree"
+input_types = ["binary_tree"]
+output_type = "binary_tree"
+
+[[cases]]
+input = [[4, 2, 7, 1, 3, 6, 9]]
+output = [4, 7, 2, 9, 6, 3, 1]
+```
+
+比较输出时，Leet-Chaser 会把返回的 `TreeNode` 转回层序数组，并去掉末尾多余的 `"null"`。
 
 ## 混合参数
 

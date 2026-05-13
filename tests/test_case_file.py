@@ -12,6 +12,7 @@ from leet_chaser.linked_types import (
     doubly_linked_list_to_array,
     linked_list_to_array,
 )
+from leet_chaser.tree_types import TreeNode, binary_tree_to_array
 
 
 def test_read_case_file_supports_common_leetcode_values(tmp_path: Path) -> None:
@@ -202,6 +203,90 @@ output = { values = [3, 2, 0, -4], pos = 1 }
         "values": [3, 2, 0, -4],
         "pos": 1,
     }
+
+
+def test_read_case_file_parses_binary_tree_type_metadata(tmp_path: Path) -> None:
+    """Verify binary tree metadata converts level-order arrays to nodes.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+entrypoint = "isValidBST"
+input_types = ["binary_tree"]
+
+[[cases]]
+input = [[5, 1, 4, "null", "null", 3, 6]]
+output = false
+""",
+        encoding="utf-8",
+    )
+
+    parsed_case = read_case_file(case_file).cases[0]
+    root = parsed_case.input[0]
+
+    assert isinstance(root, TreeNode)
+    assert binary_tree_to_array(root) == [5, 1, 4, "null", "null", 3, 6]
+    assert root.left.val == 1
+    assert root.right.left.val == 3
+
+
+def test_read_case_file_parses_empty_binary_tree(tmp_path: Path) -> None:
+    """Verify an empty level-order array becomes a missing root.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+entrypoint = "levelOrder"
+input_types = ["binary_tree"]
+
+[[cases]]
+input = [[]]
+output = []
+""",
+        encoding="utf-8",
+    )
+
+    parsed_case = read_case_file(case_file).cases[0]
+
+    assert parsed_case.input[0] is None
+
+
+def test_read_case_file_rejects_invalid_binary_tree_root(tmp_path: Path) -> None:
+    """Verify binary tree parsing rejects impossible root data.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+entrypoint = "broken"
+input_types = ["binary_tree"]
+
+[[cases]]
+input = [["null", 1]]
+output = false
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CaseFileError, match="root cannot be null"):
+        read_case_file(case_file)
 
 
 def test_read_case_file_parses_inplace_write_metadata(tmp_path: Path) -> None:

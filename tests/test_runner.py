@@ -274,6 +274,136 @@ output = { values = [3, 2, 0, -4], pos = 1 }
     assert result.passed[0].actual == {"values": [3, 2, 0, -4], "pos": 1}
 
 
+def test_run_problem_passes_binary_tree_to_solution(tmp_path: Path) -> None:
+    """Verify binary tree inputs are passed as TreeNode roots.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "validate-bst"
+    write_problem(
+        problem_dir,
+        """
+class Solution:
+    def isValidBST(self, root):
+        def walk(node, lower, upper):
+            if node is None:
+                return True
+            if not lower < node.val < upper:
+                return False
+            return walk(node.left, lower, node.val) and walk(node.right, node.val, upper)
+
+        return walk(root, float("-inf"), float("inf"))
+""",
+        """
+entrypoint = "isValidBST"
+input_types = ["binary_tree"]
+
+[[cases]]
+input = [[2, 1, 3]]
+output = true
+
+[[cases]]
+input = [[5, 1, 4, "null", "null", 3, 6]]
+output = false
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert not result.has_failures
+    assert [case.actual for case in result.passed] == [True, False]
+
+
+def test_run_problem_handles_binary_tree_level_order_solution(tmp_path: Path) -> None:
+    """Verify level-order traversal can consume a binary tree input.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "level-order"
+    write_problem(
+        problem_dir,
+        """
+class Solution:
+    def levelOrder(self, root):
+        if root is None:
+            return []
+        levels = []
+        queue = [(root, 0)]
+        for node, depth in queue:
+            if depth == len(levels):
+                levels.append([])
+            levels[depth].append(node.val)
+            if node.left is not None:
+                queue.append((node.left, depth + 1))
+            if node.right is not None:
+                queue.append((node.right, depth + 1))
+        return levels
+""",
+        """
+entrypoint = "levelOrder"
+input_types = ["binary_tree"]
+
+[[cases]]
+input = [[3, 9, 20, "null", "null", 15, 7]]
+output = [[3], [9, 20], [15, 7]]
+
+[[cases]]
+input = [[]]
+output = []
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert not result.has_failures
+
+
+def test_run_problem_normalizes_binary_tree_output(tmp_path: Path) -> None:
+    """Verify binary tree outputs compare as trimmed level-order arrays.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "invert-tree"
+    write_problem(
+        problem_dir,
+        """
+class Solution:
+    def invertTree(self, root):
+        if root is None:
+            return None
+        root.left, root.right = self.invertTree(root.right), self.invertTree(root.left)
+        return root
+""",
+        """
+entrypoint = "invertTree"
+input_types = ["binary_tree"]
+output_type = "binary_tree"
+
+[[cases]]
+input = [[4, 2, 7, 1, 3, 6, 9]]
+output = [4, 7, 2, 9, 6, 3, 1, "null", "null"]
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert not result.has_failures
+    assert result.passed[0].expected == [4, 7, 2, 9, 6, 3, 1]
+    assert result.passed[0].actual == [4, 7, 2, 9, 6, 3, 1]
+
+
 def test_run_problem_compares_inplace_input_after_solution_call(tmp_path: Path) -> None:
     """Verify inplace write cases compare the mutated input argument.
 

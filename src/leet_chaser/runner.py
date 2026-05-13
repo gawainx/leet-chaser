@@ -8,6 +8,7 @@ from typing import Any
 
 from leet_chaser.case_file import Case, CaseFile, read_case_file
 from leet_chaser.linked_types import LINKED_TYPE_NAMES, normalize_linked_value
+from leet_chaser.tree_types import TREE_TYPE_NAMES, normalize_tree_value
 
 
 class ProblemRunError(ValueError):
@@ -318,6 +319,8 @@ def normalize_case_value(value: Any, value_type: str) -> Any:
     """
     if value_type in LINKED_TYPE_NAMES:
         return normalize_linked_value(value, value_type)
+    if value_type in TREE_TYPE_NAMES:
+        return normalize_tree_value(value, value_type)
     return value
 
 

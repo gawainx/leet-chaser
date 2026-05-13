@@ -91,7 +91,18 @@ input = [[1, 2, 3]]
 output = [3, 2, 1]
 ```
 
-更多单链表、双向链表和循环链表写法见 [docs/advanced-case-types.md](docs/advanced-case-types.md)。
+二叉树题可以用 LeetCode 层序数组表达，空节点写成字符串 `"null"`：
+
+```toml
+entrypoint = "isValidBST"
+input_types = ["binary_tree"]
+
+[[cases]]
+input = [[5, 1, 4, "null", "null", 3, 6]]
+output = false
+```
+
+更多单链表、双向链表、循环链表和二叉树写法见 [docs/advanced-case-types.md](docs/advanced-case-types.md)。
 
 原地修改数组的题目可以通过顶级原地写入元数据比较被修改后的输入参数：
 

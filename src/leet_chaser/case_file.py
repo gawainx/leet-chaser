@@ -13,9 +13,10 @@ from leet_chaser.linked_types import (
     build_doubly_linked_list,
     build_linked_list,
 )
+from leet_chaser.tree_types import TREE_TYPE_NAMES, build_binary_tree
 
 RAW_TYPE_NAME = "raw"
-CASE_TYPE_NAMES = LINKED_TYPE_NAMES | frozenset({RAW_TYPE_NAME})
+CASE_TYPE_NAMES = LINKED_TYPE_NAMES | TREE_TYPE_NAMES | frozenset({RAW_TYPE_NAME})
 
 
 @dataclass(frozen=True)
@@ -372,6 +373,12 @@ def _parse_typed_value(value: Any, value_type: str, field_name: str) -> Any:
     if value_type == "circular_linked_list":
         values, pos = _parse_circular_data(value, field_name)
         return build_circular_linked_list(values, pos)
+    if value_type == "binary_tree":
+        values = _parse_tree_values(value, field_name)
+        try:
+            return build_binary_tree(values)
+        except ValueError as error:
+            raise CaseFileError(f"{field_name} is not valid binary-tree data: {error}") from error
     return value
 
 
@@ -390,6 +397,24 @@ def _parse_array_values(value: Any, field_name: str) -> list[Any]:
     """
     if not isinstance(value, list):
         raise CaseFileError(f"{field_name} must be an array for linked-list parsing")
+    return value
+
+
+def _parse_tree_values(value: Any, field_name: str) -> list[Any]:
+    """Parse a binary-tree value that must be an array.
+
+    Args:
+        value: Raw TOML value.
+        field_name: Field name used in error messages.
+
+    Returns:
+        The validated level-order array value.
+
+    Raises:
+        CaseFileError: If the value is not an array.
+    """
+    if not isinstance(value, list):
+        raise CaseFileError(f"{field_name} must be an array for binary-tree parsing")
     return value
 
 
