@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from importlib import util
 from pathlib import Path
+import traceback
 from types import ModuleType
 from typing import Any
 
@@ -59,6 +60,7 @@ class ErrorCaseResult:
         expected: Expected value configured in ``cases.toml``.
         error_type: Exception class name raised by the case.
         error_message: String representation of the raised exception.
+        traceback: Formatted traceback captured from the raised exception.
     """
 
     index: int
@@ -66,6 +68,7 @@ class ErrorCaseResult:
     expected: Any
     error_type: str
     error_message: str
+    traceback: str
 
 
 CaseResult = PassedCaseResult | FailedCaseResult | ErrorCaseResult
@@ -249,6 +252,7 @@ def run_cases(
                     expected=test_case.output,
                     error_type=type(error).__name__,
                     error_message=str(error),
+                    traceback="".join(traceback.format_exception(type(error), error, error.__traceback__)),
                 )
             )
             continue

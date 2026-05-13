@@ -10,7 +10,7 @@ from rich.table import Table
 
 from leet_chaser.case_file import CaseFileError
 from leet_chaser.debugger import ProblemDebugError, ProblemDebugResult, debug_problem
-from leet_chaser.runner import ProblemRunError, ProblemRunResult, run_problem
+from leet_chaser.runner import ErrorCaseResult, ProblemRunError, ProblemRunResult, run_problem
 
 app = typer.Typer(help="Run LeetCode solutions against local test cases.")
 console = Console()
@@ -97,8 +97,9 @@ def run(problem_dir: Path) -> None:
     print_warnings(result.warnings)
     for test_case in result.passed:
         console.print(f"[green]PASS[/green] case {test_case.index}")
-    if result.has_failures:
+    if result.failed:
         console.print(build_failure_table(result))
+    print_error_tracebacks(result.errors)
 
     console.print(
         f"Summary: {len(result.passed)}/{result.total_count} passed, "
@@ -183,10 +184,10 @@ def build_debug_summary(result: ProblemDebugResult) -> str:
 
 
 def build_failure_table(result: ProblemRunResult) -> Table:
-    """Build a table for failed and errored cases.
+    """Build a table for failed cases.
 
     Args:
-        result: Structured run result containing failed or errored cases.
+        result: Structured run result containing failed cases.
 
     Returns:
         Rich table with case index, input, expected output, and actual output.
@@ -204,14 +205,23 @@ def build_failure_table(result: ProblemRunResult) -> Table:
             format_value(test_case.expected),
             format_value(test_case.actual),
         )
-    for test_case in result.errors:
-        table.add_row(
-            str(test_case.index),
-            format_value(test_case.input),
-            format_value(test_case.expected),
-            f"{test_case.error_type}: {test_case.error_message}",
-        )
     return table
+
+
+def print_error_tracebacks(errors: list[ErrorCaseResult]) -> None:
+    """Print full tracebacks for errored cases grouped by case.
+
+    Args:
+        errors: Case execution errors collected by the runner.
+
+    Returns:
+        None.
+    """
+    for test_case in errors:
+        console.print(f"[red]ERROR[/red] case {test_case.index}: {test_case.error_type}: {test_case.error_message}")
+        console.print(f"Input: {format_value(test_case.input)}")
+        console.print(f"Expected: {format_value(test_case.expected)}")
+        console.print(test_case.traceback.rstrip())
 
 
 def format_value(value: Any) -> str:

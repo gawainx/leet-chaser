@@ -196,6 +196,8 @@ output = "later-expected"
     assert result.errors[0].index == 2
     assert result.errors[0].error_type == "RuntimeError"
     assert result.errors[0].error_message == "broken case"
+    assert "Traceback (most recent call last):" in result.errors[0].traceback
+    assert 'raise RuntimeError("broken case")' in result.errors[0].traceback
 
 
 def test_run_problem_normalizes_linked_list_output(tmp_path: Path) -> None:
