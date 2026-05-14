@@ -99,9 +99,9 @@ def fetch_title_slug(question_number: int) -> str:
         LeetCodeClientError: If no exact public question match is found.
     """
     query = """
-query problemsetQuestionList($filters: QuestionListFilterInput, $limit: Int, $skip: Int) {
-  problemsetQuestionList: questionList(filters: $filters, limit: $limit, skip: $skip) {
-    questions {
+query problemsetQuestionList($categorySlug: String, $filters: QuestionListFilterInput, $limit: Int, $skip: Int) {
+  problemsetQuestionList: questionList(categorySlug: $categorySlug, filters: $filters, limit: $limit, skip: $skip) {
+    data {
       frontendQuestionId: questionFrontendId
       titleSlug
       paidOnly: isPaidOnly
@@ -112,6 +112,7 @@ query problemsetQuestionList($filters: QuestionListFilterInput, $limit: Int, $sk
     payload = {
         "query": query,
         "variables": {
+            "categorySlug": "",
             "filters": {"searchKeywords": str(question_number)},
             "limit": 50,
             "skip": 0,
@@ -121,7 +122,7 @@ query problemsetQuestionList($filters: QuestionListFilterInput, $limit: Int, $sk
     questions = (
         data.get("data", {})
         .get("problemsetQuestionList", {})
-        .get("questions", [])
+        .get("data", [])
     )
     for question in questions:
         if str(question.get("frontendQuestionId")) == str(question_number):

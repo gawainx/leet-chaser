@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 from leet_chaser import __version__
 from leet_chaser.case_file import Case, CaseFile, read_case_file
 from leet_chaser.cli import app, normalize_project_name, resolve_init_case_type
-from leet_chaser.leetcode_client import LeetCodeQuestionMetadata
+from leet_chaser.leetcode_client import LeetCodeQuestionMetadata, fetch_title_slug
 from leet_chaser.tree_types import binary_tree_to_array
 
 runner = CliRunner()
@@ -262,6 +262,46 @@ def test_init_remote_question_rejects_case_type(
     assert result.exit_code != 0
     assert "type cannot be used with question-number" in result.output
     assert not any(tmp_path.iterdir())
+
+
+def test_fetch_title_slug_reads_problemset_data_field(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify title slug lookup reads LeetCode's paginated data field.
+
+    Args:
+        monkeypatch: Pytest helper used to replace the GraphQL request.
+
+    Returns:
+        None.
+    """
+
+    def fake_post_graphql(payload: dict) -> dict:
+        """Return a minimal LeetCode problemset response.
+
+        Args:
+            payload: GraphQL payload produced by title slug lookup.
+
+        Returns:
+            Fake GraphQL response using the current ``data`` field name.
+        """
+        assert "data" in payload["query"]
+        assert payload["variables"]["categorySlug"] == ""
+        return {
+            "data": {
+                "problemsetQuestionList": {
+                    "data": [
+                        {
+                            "frontendQuestionId": "128",
+                            "titleSlug": "longest-consecutive-sequence",
+                            "paidOnly": False,
+                        }
+                    ]
+                }
+            }
+        }
+
+    monkeypatch.setattr("leet_chaser.leetcode_client.post_graphql", fake_post_graphql)
+
+    assert fetch_title_slug(128) == "longest-consecutive-sequence"
 
 
 def test_init_rejects_unknown_case_template_type(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
