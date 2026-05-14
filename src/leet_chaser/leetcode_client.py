@@ -118,7 +118,7 @@ query problemsetQuestionList($categorySlug: String, $filters: QuestionListFilter
             "skip": 0,
         },
     }
-    data = post_graphql(payload)
+    data = post_graphql(payload, operation="lookup question number")
     questions = (
         data.get("data", {})
         .get("problemsetQuestionList", {})
@@ -133,7 +133,10 @@ query problemsetQuestionList($categorySlug: String, $filters: QuestionListFilter
             title_slug = question.get("titleSlug")
             if isinstance(title_slug, str) and title_slug:
                 return title_slug
-    raise LeetCodeClientError(f"question {question_number} was not found")
+    raise LeetCodeClientError(
+        f"question {question_number} was not found in the public problemset; "
+        "it may not exist or may not be publicly listed"
+    )
 
 
 def fetch_question_data(title_slug: str) -> dict[str, Any]:
@@ -164,18 +167,25 @@ query questionData($titleSlug: String!) {
   }
 }
 """
-    data = post_graphql({"query": query, "variables": {"titleSlug": title_slug}})
+    data = post_graphql(
+        {"query": query, "variables": {"titleSlug": title_slug}},
+        operation="fetch question detail",
+    )
     question = data.get("data", {}).get("question")
     if not isinstance(question, dict):
-        raise LeetCodeClientError(f"question data for {title_slug} was not found")
+        raise LeetCodeClientError(
+            f"question data for {title_slug} was not returned; "
+            "the question may not be public or LeetCode may have changed the question detail API"
+        )
     return question
 
 
-def post_graphql(payload: dict[str, Any]) -> dict[str, Any]:
+def post_graphql(payload: dict[str, Any], operation: str = "query LeetCode") -> dict[str, Any]:
     """Post a JSON GraphQL request to LeetCode.
 
     Args:
         payload: GraphQL query and variables.
+        operation: Human-readable operation name for error messages.
 
     Returns:
         Parsed JSON response.
@@ -198,22 +208,81 @@ def post_graphql(payload: dict[str, Any]) -> dict[str, Any]:
         with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
             raw_response = response.read().decode("utf-8")
     except HTTPError as error:
-        raise LeetCodeClientError(f"LeetCode returned HTTP {error.code}") from error
+        detail = read_http_error_body(error)
+        raise LeetCodeClientError(
+            f"{operation} failed: LeetCode returned HTTP {error.code}; "
+            "this usually means the public GraphQL query is invalid or LeetCode changed its API"
+            f"{detail}"
+        ) from error
     except URLError as error:
-        raise LeetCodeClientError(f"could not reach LeetCode: {error.reason}") from error
+        raise LeetCodeClientError(
+            f"{operation} failed: could not reach LeetCode; check network access, DNS, "
+            f"proxy, or LeetCode availability; detail: {error.reason}"
+        ) from error
     except TimeoutError as error:
-        raise LeetCodeClientError("LeetCode request timed out") from error
+        raise LeetCodeClientError(
+            f"{operation} failed: LeetCode request timed out after "
+            f"{REQUEST_TIMEOUT_SECONDS} seconds"
+        ) from error
 
     try:
         data = json.loads(raw_response)
     except json.JSONDecodeError as error:
-        raise LeetCodeClientError("LeetCode returned invalid JSON") from error
+        raise LeetCodeClientError(
+            f"{operation} failed: LeetCode returned invalid JSON; "
+            "the public endpoint response format may have changed"
+        ) from error
 
     if data.get("errors"):
-        raise LeetCodeClientError("LeetCode returned a GraphQL error")
+        raise LeetCodeClientError(
+            f"{operation} failed: LeetCode returned a GraphQL error; "
+            "this usually means the public GraphQL schema or required arguments changed; "
+            f"detail: {format_graphql_errors(data.get('errors'))}"
+        )
     if not isinstance(data, dict):
-        raise LeetCodeClientError("LeetCode returned an invalid response")
+        raise LeetCodeClientError(
+            f"{operation} failed: LeetCode returned an invalid response shape"
+        )
     return data
+
+
+def read_http_error_body(error: HTTPError) -> str:
+    """Read a short HTTP error response body for diagnostics.
+
+    Args:
+        error: HTTP error raised by ``urlopen``.
+
+    Returns:
+        A formatted detail suffix, or an empty string when the body is unavailable.
+    """
+    try:
+        raw_body = error.read().decode("utf-8", errors="replace").strip()
+    except (OSError, ValueError):
+        return ""
+    if not raw_body:
+        return ""
+    return f"; detail: {raw_body[:500]}"
+
+
+def format_graphql_errors(errors: Any) -> str:
+    """Format GraphQL errors into a compact diagnostic string.
+
+    Args:
+        errors: Raw GraphQL ``errors`` payload.
+
+    Returns:
+        Human-readable error messages.
+    """
+    if not isinstance(errors, list):
+        return str(errors)
+    messages = [
+        error.get("message")
+        for error in errors
+        if isinstance(error, dict) and isinstance(error.get("message"), str)
+    ]
+    if not messages:
+        return str(errors)
+    return " | ".join(messages)
 
 
 def build_remote_init_files(metadata: LeetCodeQuestionMetadata) -> RemoteInitFiles:

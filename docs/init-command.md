@@ -30,6 +30,8 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 
 题号初始化只支持公开免费题目和题面示例，不承诺隐藏测试集、付费题、多语言模板或自动高级类型识别。网络失败、题号不存在、缺少 Python3 模板或示例无法解析时，命令会报错并且不创建目录。
 
+远程错误提示按失败阶段输出：题号查 slug 阶段使用 `lookup question number failed`，题目详情阶段使用 `fetch question detail failed`。HTTP 400/GraphQL error 会提示公开 GraphQL 查询或 schema 可能变化；网络错误会提示接口不可达；付费题和公开题库查不到会单独说明，方便后续定位是题目公开性问题、接口变化还是本地网络问题。
+
 ## 实现方法
 
 在 `leet_chaser.cli` 中新增：
@@ -64,3 +66,6 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 - `test_init_creates_remote_question_workspace`：验证 `-q` 会生成 `lt001.twoSum`、Python 模板和可解析 case。
 - `test_init_remote_question_accepts_custom_directory_name`：验证自定义目录名会覆盖默认远程目录名。
 - `test_init_remote_question_rejects_case_type`：验证 `-q` 与 `-t` 同时使用会报错且不创建目录。
+- `test_post_graphql_reports_http_query_errors`：验证 HTTP 查询失败会包含阶段、状态码和接口变更提示。
+- `test_post_graphql_reports_network_unreachable`：验证接口不可达会提示网络、DNS、代理或 LeetCode 可用性。
+- `test_post_graphql_reports_graphql_schema_errors`：验证 GraphQL schema 错误会包含接口变更提示和原始 message。

@@ -56,6 +56,8 @@ leet-chaser init -q 1
 leet-chaser init custom-two-sum -q 1
 ```
 
+如果拉取失败，错误信息会说明失败阶段和类型，例如题号不在公开题库、付费题、GraphQL 查询错误或接口不可达，方便判断是题目访问限制、LeetCode 接口变化还是本地网络问题。
+
 命令会在当前目录创建一个题目文件夹：
 
 ```text

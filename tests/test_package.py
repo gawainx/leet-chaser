@@ -1,6 +1,8 @@
 """Smoke tests for the package bootstrap."""
 
+from io import BytesIO
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 
 import pytest
 from typer.testing import CliRunner
@@ -8,7 +10,12 @@ from typer.testing import CliRunner
 from leet_chaser import __version__
 from leet_chaser.case_file import Case, CaseFile, read_case_file
 from leet_chaser.cli import app, normalize_project_name, resolve_init_case_type
-from leet_chaser.leetcode_client import LeetCodeQuestionMetadata, fetch_title_slug
+from leet_chaser.leetcode_client import (
+    LeetCodeClientError,
+    LeetCodeQuestionMetadata,
+    fetch_title_slug,
+    post_graphql,
+)
 from leet_chaser.tree_types import binary_tree_to_array
 
 runner = CliRunner()
@@ -274,11 +281,12 @@ def test_fetch_title_slug_reads_problemset_data_field(monkeypatch: pytest.Monkey
         None.
     """
 
-    def fake_post_graphql(payload: dict) -> dict:
+    def fake_post_graphql(payload: dict, operation: str = "query LeetCode") -> dict:
         """Return a minimal LeetCode problemset response.
 
         Args:
             payload: GraphQL payload produced by title slug lookup.
+            operation: Human-readable operation name.
 
         Returns:
             Fake GraphQL response using the current ``data`` field name.
@@ -302,6 +310,213 @@ def test_fetch_title_slug_reads_problemset_data_field(monkeypatch: pytest.Monkey
     monkeypatch.setattr("leet_chaser.leetcode_client.post_graphql", fake_post_graphql)
 
     assert fetch_title_slug(128) == "longest-consecutive-sequence"
+
+
+def test_fetch_title_slug_reports_paid_only_question(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify paid-only questions produce a public access error.
+
+    Args:
+        monkeypatch: Pytest helper used to replace the GraphQL request.
+
+    Returns:
+        None.
+    """
+
+    def fake_post_graphql(payload: dict, operation: str = "query LeetCode") -> dict:
+        """Return a paid-only problemset response.
+
+        Args:
+            payload: GraphQL payload produced by title slug lookup.
+            operation: Human-readable operation name.
+
+        Returns:
+            Fake GraphQL response for a paid-only question.
+        """
+        return {
+            "data": {
+                "problemsetQuestionList": {
+                    "data": [
+                        {
+                            "frontendQuestionId": "1",
+                            "titleSlug": "two-sum",
+                            "paidOnly": True,
+                        }
+                    ]
+                }
+            }
+        }
+
+    monkeypatch.setattr("leet_chaser.leetcode_client.post_graphql", fake_post_graphql)
+
+    with pytest.raises(LeetCodeClientError, match="paid-only"):
+        fetch_title_slug(1)
+
+
+def test_fetch_title_slug_reports_unlisted_public_problemset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify missing question numbers produce a public problemset hint.
+
+    Args:
+        monkeypatch: Pytest helper used to replace the GraphQL request.
+
+    Returns:
+        None.
+    """
+
+    def fake_post_graphql(payload: dict, operation: str = "query LeetCode") -> dict:
+        """Return an empty public problemset response.
+
+        Args:
+            payload: GraphQL payload produced by title slug lookup.
+            operation: Human-readable operation name.
+
+        Returns:
+            Fake GraphQL response with no matching question.
+        """
+        return {"data": {"problemsetQuestionList": {"data": []}}}
+
+    monkeypatch.setattr("leet_chaser.leetcode_client.post_graphql", fake_post_graphql)
+
+    with pytest.raises(LeetCodeClientError, match="public problemset"):
+        fetch_title_slug(999999)
+
+
+def test_post_graphql_reports_http_query_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify HTTP failures include query and API-change diagnostics.
+
+    Args:
+        monkeypatch: Pytest helper used to replace ``urlopen``.
+
+    Returns:
+        None.
+    """
+
+    def fake_urlopen(request, timeout: int):
+        """Raise an HTTP error with a GraphQL-style response body.
+
+        Args:
+            request: Request passed to ``urlopen``.
+            timeout: Request timeout in seconds.
+
+        Raises:
+            HTTPError: Always raised for this test.
+        """
+        raise HTTPError(
+            url="https://leetcode.com/graphql",
+            code=400,
+            msg="Bad Request",
+            hdrs={},
+            fp=BytesIO(b'{"errors":[{"message":"Cannot query field"}]}'),
+        )
+
+    monkeypatch.setattr("leet_chaser.leetcode_client.urlopen", fake_urlopen)
+
+    with pytest.raises(LeetCodeClientError) as error:
+        post_graphql({"query": "query { ping }"}, operation="lookup question number")
+
+    message = str(error.value)
+    assert "lookup question number failed" in message
+    assert "HTTP 400" in message
+    assert "public GraphQL query is invalid" in message
+    assert "Cannot query field" in message
+
+
+def test_post_graphql_reports_network_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify network failures include reachability diagnostics.
+
+    Args:
+        monkeypatch: Pytest helper used to replace ``urlopen``.
+
+    Returns:
+        None.
+    """
+
+    def fake_urlopen(request, timeout: int):
+        """Raise a URL error for this test.
+
+        Args:
+            request: Request passed to ``urlopen``.
+            timeout: Request timeout in seconds.
+
+        Raises:
+            URLError: Always raised for this test.
+        """
+        raise URLError("network unreachable")
+
+    monkeypatch.setattr("leet_chaser.leetcode_client.urlopen", fake_urlopen)
+
+    with pytest.raises(LeetCodeClientError) as error:
+        post_graphql({"query": "query { ping }"}, operation="fetch question detail")
+
+    message = str(error.value)
+    assert "fetch question detail failed" in message
+    assert "could not reach LeetCode" in message
+    assert "network unreachable" in message
+
+
+def test_post_graphql_reports_graphql_schema_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify GraphQL errors include schema-change diagnostics.
+
+    Args:
+        monkeypatch: Pytest helper used to replace ``urlopen``.
+
+    Returns:
+        None.
+    """
+
+    class FakeResponse:
+        """Minimal context-manager response used by ``post_graphql`` tests."""
+
+        def __enter__(self):
+            """Return this fake response.
+
+            Returns:
+                The fake response object.
+            """
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback) -> None:
+            """Close the fake response context.
+
+            Args:
+                exc_type: Exception type.
+                exc_value: Exception value.
+                traceback: Exception traceback.
+
+            Returns:
+                None.
+            """
+
+        def read(self) -> bytes:
+            """Return a GraphQL error payload.
+
+            Returns:
+                JSON response bytes.
+            """
+            return b'{"errors":[{"message":"missing categorySlug"}]}'
+
+    def fake_urlopen(request, timeout: int):
+        """Return a fake GraphQL error response.
+
+        Args:
+            request: Request passed to ``urlopen``.
+            timeout: Request timeout in seconds.
+
+        Returns:
+            Fake response object.
+        """
+        return FakeResponse()
+
+    monkeypatch.setattr("leet_chaser.leetcode_client.urlopen", fake_urlopen)
+
+    with pytest.raises(LeetCodeClientError) as error:
+        post_graphql({"query": "query { ping }"}, operation="lookup question number")
+
+    message = str(error.value)
+    assert "GraphQL error" in message
+    assert "schema or required arguments changed" in message
+    assert "missing categorySlug" in message
 
 
 def test_init_rejects_unknown_case_template_type(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
