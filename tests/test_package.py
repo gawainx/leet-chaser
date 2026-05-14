@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 from leet_chaser import __version__
 from leet_chaser.case_file import Case, CaseFile, read_case_file
 from leet_chaser.cli import app, normalize_project_name, resolve_init_case_type
+from leet_chaser.leetcode_client import LeetCodeQuestionMetadata
 from leet_chaser.tree_types import binary_tree_to_array
 
 runner = CliRunner()
@@ -156,6 +157,111 @@ def test_init_creates_matrix_case_template(tmp_path: Path, monkeypatch: pytest.M
         input=[[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 3],
         output=True,
     )
+
+
+def test_init_creates_remote_question_workspace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify init can create a workspace from a public LeetCode question number.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+        monkeypatch: Pytest helper used to run the command from tmp_path.
+
+    Returns:
+        None.
+    """
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "leet_chaser.cli.fetch_question_metadata",
+        lambda question_number: LeetCodeQuestionMetadata(
+            question_number=question_number,
+            title="Two Sum",
+            title_slug="two-sum",
+            entrypoint="twoSum",
+            python_code=(
+                "class Solution:\n"
+                "    def twoSum(self, nums: List[int], target: int) -> List[int]:\n"
+                "        pass\n"
+            ),
+            content_html=(
+                "<p><strong>Example 1:</strong></p><pre>"
+                "<strong>Input:</strong> nums = [2,7,11,15], target = 9<br>"
+                "<strong>Output:</strong> [0,1]</pre>"
+            ),
+            parameter_names=["nums", "target"],
+        ),
+    )
+
+    result = runner.invoke(app, ["init", "-q", "1"], catch_exceptions=False, env={})
+
+    project_dir = tmp_path / "lt001.twoSum"
+    assert result.exit_code == 0
+    assert "def twoSum" in (project_dir / "solution.py").read_text(encoding="utf-8")
+    assert read_case_file(project_dir / "cases.toml") == CaseFile(
+        entrypoint="twoSum",
+        cases=[Case(input=[[2, 7, 11, 15], 9], output=[0, 1])],
+    )
+    assert "Created lt001.twoSum" in result.output
+
+
+def test_init_remote_question_accepts_custom_directory_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify a custom init name overrides the remote question directory name.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+        monkeypatch: Pytest helper used to run the command from tmp_path.
+
+    Returns:
+        None.
+    """
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "leet_chaser.cli.fetch_question_metadata",
+        lambda question_number: LeetCodeQuestionMetadata(
+            question_number=question_number,
+            title="Two Sum",
+            title_slug="two-sum",
+            entrypoint="twoSum",
+            python_code="class Solution:\n    def twoSum(self, nums, target):\n        pass\n",
+            content_html="<pre>Input: nums = [3,2,4], target = 6\nOutput: [1,2]</pre>",
+            parameter_names=["nums", "target"],
+        ),
+    )
+
+    result = runner.invoke(
+        app,
+        ["init", "custom-two-sum", "--question-number", "1"],
+        catch_exceptions=False,
+        env={},
+    )
+
+    assert result.exit_code == 0
+    assert (tmp_path / "custom-two-sum").is_dir()
+    assert not (tmp_path / "lt001.twoSum").exists()
+
+
+def test_init_remote_question_rejects_case_type(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify question-number init rejects fixed case templates.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+        monkeypatch: Pytest helper used to run the command from tmp_path.
+
+    Returns:
+        None.
+    """
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["init", "-q", "1", "-t", "matrix"], env={})
+
+    assert result.exit_code != 0
+    assert "type cannot be used with question-number" in result.output
+    assert not any(tmp_path.iterdir())
 
 
 def test_init_rejects_unknown_case_template_type(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -10,6 +10,11 @@ from rich.table import Table
 
 from leet_chaser.case_file import CaseFileError
 from leet_chaser.debugger import ProblemDebugError, ProblemDebugResult, debug_problem
+from leet_chaser.leetcode_client import (
+    LeetCodeClientError,
+    build_remote_init_files,
+    fetch_question_metadata,
+)
 from leet_chaser.runner import ErrorCaseResult, ProblemRunError, ProblemRunResult, run_problem
 
 app = typer.Typer(help="Run LeetCode solutions against local test cases.")
@@ -134,25 +139,59 @@ def resolve_init_case_type(raw_case_type: str | None) -> str:
 
 @app.command()
 def init(
-    name: str,
+    name: str | None = typer.Argument(
+        None,
+        help="Name of the child directory to create. Optional when --question-number is used.",
+    ),
     case_type: str | None = typer.Option(
         None,
         "--type",
         "-t",
         help="Case template type. Supports fuzzy values like linklist, bitree, tree, or matrix.",
     ),
+    question_number: int | None = typer.Option(
+        None,
+        "--question-number",
+        "-q",
+        min=1,
+        help="Public LeetCode question number used to fetch a Python3 template and examples.",
+    ),
 ) -> None:
     """Create a solution workspace in the current directory.
 
     Args:
-        name: Name of the child directory to create.
+        name: Optional name of the child directory to create.
         case_type: Optional fuzzy case template type for advanced input metadata.
+        question_number: Optional public LeetCode question number for remote templates.
 
     Returns:
         None.
     """
-    project_name = normalize_project_name(name)
-    resolved_case_type = resolve_init_case_type(case_type)
+    if question_number is not None and case_type is not None:
+        raise typer.BadParameter(
+            "type cannot be used with question-number",
+            param_hint="type",
+        )
+    if question_number is None and name is None:
+        raise typer.BadParameter(
+            "name is required unless question-number is provided",
+            param_hint="name",
+        )
+
+    if question_number is not None:
+        try:
+            init_files = build_remote_init_files(fetch_question_metadata(question_number))
+        except LeetCodeClientError as error:
+            raise typer.BadParameter(str(error), param_hint="question-number") from error
+        project_name = normalize_project_name(name) if name is not None else init_files.directory_name
+        solution_text = init_files.solution_text
+        case_text = init_files.case_text
+    else:
+        project_name = normalize_project_name(name or "")
+        resolved_case_type = resolve_init_case_type(case_type)
+        solution_text = SOLUTION_TEMPLATE
+        case_text = CASE_TEMPLATE_BY_TYPE[resolved_case_type]
+
     project_dir = Path.cwd() / project_name
     try:
         project_dir.mkdir()
@@ -162,11 +201,8 @@ def init(
             param_hint="name",
         ) from error
 
-    (project_dir / "solution.py").write_text(SOLUTION_TEMPLATE, encoding="utf-8")
-    (project_dir / "cases.toml").write_text(
-        CASE_TEMPLATE_BY_TYPE[resolved_case_type],
-        encoding="utf-8",
-    )
+    (project_dir / "solution.py").write_text(solution_text, encoding="utf-8")
+    (project_dir / "cases.toml").write_text(case_text, encoding="utf-8")
 
     console.print(f"Created [bold green]{project_name}[/bold green]")
 

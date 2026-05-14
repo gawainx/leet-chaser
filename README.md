@@ -43,6 +43,19 @@ leet-chaser init level-order -t tree
 leet-chaser init search-matrix -t matrix
 ```
 
+也可以按公开 LeetCode 题号初始化，命令会拉取 Python3 模板和题面示例，不需要登录：
+
+```shell
+leet-chaser init --question-number 1
+leet-chaser init -q 1
+```
+
+题号初始化默认创建 `lt{题号三位}.{入口名}` 目录，例如 `lt001.twoSum/`。如果额外提供目录名，会使用用户指定名称：
+
+```shell
+leet-chaser init custom-two-sum -q 1
+```
+
 命令会在当前目录创建一个题目文件夹：
 
 ```text

@@ -6,6 +6,8 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 
 `init` 支持 `-t/--type` 参数，用于生成链表、二叉树或矩阵题目的 TOML 模板，避免用户在面试刷题时忘记写 `input_types` 或写错二维数组。
 
+`init` 支持 `--question-number/-q` 参数，用于按公开 LeetCode 题号拉取 Python3 代码模板和题面示例，不需要登录、OAuth 或 cookie。题号初始化默认创建 `lt{题号三位}.{入口名}` 目录，例如 `leet-chaser init -q 1` 创建 `lt001.twoSum/`。
+
 目录名需要对用户输入做统一处理，将特殊符号转换为 `-`，并在控制台打印最终创建的目录名。
 
 ## 设计
@@ -24,6 +26,10 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 
 链表和二叉树模板只默认每个 case 的第一个参数是特殊类型。矩阵模板不声明 `input_types`，只提供二维数组输入例子。
 
+传入 `--question-number/-q` 时，命令会先拉取题目元数据，再提取 Python3 snippet 的入口方法和题面 examples。目录名默认使用 `lt{题号三位}.{入口名}`；如果用户同时传入自定义 `name`，则使用自定义目录名。`--question-number` 与 `-t/--type` 不能同时使用，因为远程题目会生成具体 case，固定类型模板会产生语义冲突。
+
+题号初始化只支持公开免费题目和题面示例，不承诺隐藏测试集、付费题、多语言模板或自动高级类型识别。网络失败、题号不存在、缺少 Python3 模板或示例无法解析时，命令会报错并且不创建目录。
+
 ## 实现方法
 
 在 `leet_chaser.cli` 中新增：
@@ -34,6 +40,14 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 - `normalize_project_name(name)`：将 CLI 输入的名称转换成目录名。
 - `resolve_init_case_type(raw_case_type)`：将用户输入的模板类型归一为内部类型名。
 - `init(name, case_type)`：创建 `<name>` 目录，并写入 `solution.py` 和匹配的 `cases.toml`。
+
+在 `leet_chaser.leetcode_client` 中新增：
+
+- `fetch_question_metadata(question_number)`：根据题号拉取公开 LeetCode 题目元数据。
+- `fetch_title_slug(question_number)`：从题号查询题目 slug，并拒绝付费题。
+- `fetch_question_data(title_slug)`：通过题目 slug 拉取标题、题面、Python3 snippets 和 metadata。
+- `build_remote_init_files(metadata)`：生成默认目录名、`solution.py` 和 `cases.toml`。
+- `parse_examples(content_html, parameter_names)`：从题面 examples 中提取输入输出 case。
 
 测试覆盖：
 
@@ -47,3 +61,6 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 - `test_init_uses_normalized_directory_name`：验证命令使用规范化后的目录名。
 - `test_init_rejects_names_without_letters_or_numbers`：验证全特殊符号名称会报错。
 - `test_init_rejects_existing_directory`：验证已有目录不会被覆盖。
+- `test_init_creates_remote_question_workspace`：验证 `-q` 会生成 `lt001.twoSum`、Python 模板和可解析 case。
+- `test_init_remote_question_accepts_custom_directory_name`：验证自定义目录名会覆盖默认远程目录名。
+- `test_init_remote_question_rejects_case_type`：验证 `-q` 与 `-t` 同时使用会报错且不创建目录。
