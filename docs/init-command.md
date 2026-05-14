@@ -32,6 +32,8 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 
 题号初始化会输出操作进度：开始拉取题号、已获取题目标题和 slug、开始生成本地文件、写入完成。进度输出只在 `--question-number/-q` 路径启用，普通本地模板 init 保持原输出。
 
+题号初始化生成的 `cases.toml` 会使用更适合阅读的数组格式：一维数组保持单行，二维或更深层数组按嵌套层级换行。这样数组题的样例不会被展开成每个元素一行，矩阵题仍保留行结构。
+
 远程错误提示按失败阶段输出：题号查 slug 阶段使用 `lookup question number failed`，题目详情阶段使用 `fetch question detail failed`。HTTP 400/GraphQL error 会提示公开 GraphQL 查询或 schema 可能变化；网络错误会提示接口不可达；付费题和公开题库查不到会单独说明，方便后续定位是题目公开性问题、接口变化还是本地网络问题。
 
 ## 实现方法
@@ -72,3 +74,5 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 - `test_post_graphql_reports_http_query_errors`：验证 HTTP 查询失败会包含阶段、状态码和接口变更提示。
 - `test_post_graphql_reports_network_unreachable`：验证接口不可达会提示网络、DNS、代理或 LeetCode 可用性。
 - `test_post_graphql_reports_graphql_schema_errors`：验证 GraphQL schema 错误会包含接口变更提示和原始 message。
+- `test_remote_case_toml_keeps_one_dimensional_arrays_on_one_line`：验证远程 init 生成的 TOML 中一维数组保持单行。
+- `test_remote_case_toml_formats_two_dimensional_arrays_across_lines`：验证二维数组按行换行。

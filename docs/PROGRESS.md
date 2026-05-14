@@ -1,3 +1,4 @@
+- (working) : 2026.05.14 优化题号初始化生成的 `cases.toml` 可读性，远程 init 不再使用默认 `tomli_w` 数组格式，改为一维数组单行、二维或更深层数组按嵌套层级换行；docs/init-command.md 已记录格式规则，tests/test_package.py 覆盖一维数组和二维矩阵格式并验证仍可解析。
 - (working) : 2026.05.14 优化题号初始化用户体验，`leet-chaser init --question-number/-q` 现在会输出拉取题号、已获取题目、生成本地文件和写入完成等步骤进度；普通本地模板 init 输出不变，README 和 docs/init-command.md 已补充说明，tests/test_package.py 覆盖进度输出。
 - (working) : 2026.05.14 优化题号初始化的 LeetCode 拉取错误提示，HTTP/GraphQL/network 错误会带上失败阶段、接口变化或网络不可达判断，公开题库查不到和付费题会单独说明；README 和 docs/init-command.md 已记录诊断语义，tests/test_package.py 覆盖 HTTP 400、GraphQL schema error、网络不可达、付费题和公开题库查不到。
 - (working) : 2026.05.14 开始实现按 LeetCode 题号初始化，`leet-chaser init --question-number/-q 1` 会拉取公开题目的 Python3 模板和题面示例，默认创建 `lt001.twoSum` 这类 `lt{题号三位}.{入口名}` 目录；新增 leet_chaser.leetcode_client 负责公开 GraphQL 拉取、Python3 snippet 解析和 example 转 TOML，CLI 已接入参数冲突与目录写入保护，README、docs/init-command.md、设计文档和开发计划已同步，tests/test_package.py 覆盖默认目录、自定义目录和 `-q`/`-t` 冲突。

@@ -11,8 +11,6 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-import tomli_w
-
 GRAPHQL_URL = "https://leetcode.com/graphql"
 REQUEST_TIMEOUT_SECONDS = 10
 
@@ -303,13 +301,77 @@ def build_remote_init_files(metadata: LeetCodeQuestionMetadata) -> RemoteInitFil
             f"could not parse examples for question {metadata.question_number}"
         )
 
-    case_data = {"entrypoint": metadata.entrypoint, "cases": cases}
     question_prefix = f"lt{metadata.question_number:03d}"
     return RemoteInitFiles(
         directory_name=f"{question_prefix}.{metadata.entrypoint}",
         solution_text=metadata.python_code.rstrip() + "\n",
-        case_text=tomli_w.dumps(case_data),
+        case_text=format_remote_case_toml(metadata.entrypoint, cases),
     )
+
+
+def format_remote_case_toml(entrypoint: str, cases: list[dict[str, Any]]) -> str:
+    """Format remote init cases into readable TOML.
+
+    Args:
+        entrypoint: Solution method name used by the case file.
+        cases: Case dictionaries containing ``input`` and ``output`` values.
+
+    Returns:
+        TOML text where one-dimensional arrays stay on one line.
+    """
+    lines = [f'entrypoint = {format_toml_value(entrypoint)}', ""]
+    for index, test_case in enumerate(cases):
+        if index > 0:
+            lines.append("")
+        lines.append("[[cases]]")
+        lines.append(f"input = {format_toml_value(test_case['input'])}")
+        lines.append(f"output = {format_toml_value(test_case['output'])}")
+    return "\n".join(lines) + "\n"
+
+
+def format_toml_value(value: Any, indent: int = 0) -> str:
+    """Format a Python value as a readable TOML literal.
+
+    Args:
+        value: Python value parsed from a LeetCode example.
+        indent: Current indentation depth.
+
+    Returns:
+        TOML literal text.
+
+    Raises:
+        LeetCodeClientError: If the value type cannot be represented.
+    """
+    if isinstance(value, str):
+        return json.dumps(value)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int | float):
+        return repr(value)
+    if isinstance(value, list):
+        return format_toml_array(value, indent)
+    raise LeetCodeClientError(f"cannot format value as TOML: {type(value).__name__}")
+
+
+def format_toml_array(values: list[Any], indent: int = 0) -> str:
+    """Format a TOML array with compact one-dimensional lists.
+
+    Args:
+        values: Array values to format.
+        indent: Current indentation depth.
+
+    Returns:
+        TOML array text.
+    """
+    if not any(isinstance(value, list) for value in values):
+        return "[" + ", ".join(format_toml_value(value, indent) for value in values) + "]"
+    child_indent = " " * (indent + 4)
+    current_indent = " " * indent
+    lines = ["["]
+    for value in values:
+        lines.append(f"{child_indent}{format_toml_value(value, indent + 4)},")
+    lines.append(f"{current_indent}]")
+    return "\n".join(lines)
 
 
 def parse_python_code(question_data: dict[str, Any]) -> str:

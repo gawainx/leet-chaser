@@ -2,23 +2,37 @@
 
 from io import BytesIO
 from pathlib import Path
+import tomllib
 from urllib.error import HTTPError, URLError
 
 import pytest
 from typer.testing import CliRunner
 
 from leet_chaser import __version__
-from leet_chaser.case_file import Case, CaseFile, read_case_file
+from leet_chaser.case_file import Case, CaseFile, parse_case_data, read_case_file
 from leet_chaser.cli import app, normalize_project_name, resolve_init_case_type
 from leet_chaser.leetcode_client import (
     LeetCodeClientError,
     LeetCodeQuestionMetadata,
     fetch_title_slug,
+    format_remote_case_toml,
     post_graphql,
 )
 from leet_chaser.tree_types import binary_tree_to_array
 
 runner = CliRunner()
+
+
+def read_case_file_text(case_text: str) -> CaseFile:
+    """Parse a TOML case file from text.
+
+    Args:
+        case_text: Raw TOML case file text.
+
+    Returns:
+        Parsed case file.
+    """
+    return parse_case_data(tomllib.loads(case_text))
 
 
 def test_version_is_defined() -> None:
@@ -273,6 +287,59 @@ def test_init_remote_question_rejects_case_type(
     assert result.exit_code != 0
     assert "type cannot be used with question-number" in result.output
     assert not any(tmp_path.iterdir())
+
+
+def test_remote_case_toml_keeps_one_dimensional_arrays_on_one_line() -> None:
+    """Verify generated remote TOML keeps flat arrays readable.
+
+    Args:
+        None.
+
+    Returns:
+        None.
+    """
+    case_text = format_remote_case_toml(
+        "longestConsecutive",
+        [
+            {
+                "input": [[0, 3, 7, 2, 5, 8, 4, 6, 0, 1]],
+                "output": 9,
+            }
+        ],
+    )
+
+    assert "input = [\n    [0, 3, 7, 2, 5, 8, 4, 6, 0, 1],\n]" in case_text
+    assert read_case_file_text(case_text) == CaseFile(
+        entrypoint="longestConsecutive",
+        cases=[Case(input=[[0, 3, 7, 2, 5, 8, 4, 6, 0, 1]], output=9)],
+    )
+
+
+def test_remote_case_toml_formats_two_dimensional_arrays_across_lines() -> None:
+    """Verify generated remote TOML expands nested arrays.
+
+    Args:
+        None.
+
+    Returns:
+        None.
+    """
+    case_text = format_remote_case_toml(
+        "searchMatrix",
+        [
+            {
+                "input": [[[1, 3], [5, 7]], 3],
+                "output": True,
+            }
+        ],
+    )
+
+    assert "        [1, 3]," in case_text
+    assert "        [5, 7]," in case_text
+    assert read_case_file_text(case_text) == CaseFile(
+        entrypoint="searchMatrix",
+        cases=[Case(input=[[[1, 3], [5, 7]], 3], output=True)],
+    )
 
 
 def test_fetch_title_slug_reads_problemset_data_field(monkeypatch: pytest.MonkeyPatch) -> None:
