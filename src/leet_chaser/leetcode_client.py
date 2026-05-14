@@ -461,7 +461,14 @@ def parse_entrypoint_from_python_code(python_code: str) -> str:
     Raises:
         LeetCodeClientError: If no method definition is found.
     """
-    match = re.search(r"^\s{4}def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", python_code, re.MULTILINE)
+    solution_match = re.search(r"^class\s+Solution\s*[:(]", python_code, re.MULTILINE)
+    if solution_match is None:
+        raise LeetCodeClientError("could not find a Solution method in the Python3 snippet")
+    solution_body = python_code[solution_match.end():]
+    next_class_match = re.search(r"^class\s+[A-Za-z_][A-Za-z0-9_]*\s*[:(]", solution_body, re.MULTILINE)
+    if next_class_match is not None:
+        solution_body = solution_body[: next_class_match.start()]
+    match = re.search(r"^\s{4}def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", solution_body, re.MULTILINE)
     if match is None:
         raise LeetCodeClientError("could not find a Solution method in the Python3 snippet")
     return match.group(1)
@@ -560,7 +567,7 @@ def parse_examples(
     """
     text = html_to_text(content_html)
     pattern = re.compile(
-        r"Input:?\s*(?P<input>.*?)\s*Output:?\s*(?P<output>.*?)(?:\s*Explanation:|\s*Example\s+\d+:|\s*Constraints:|\Z)",
+        r"Input:?\s*(?P<input>.*?)\s*Output:?\s*(?P<output>.*?)(?:\s*Explanation:?|\s*Example\s+\d+:?|\s*Constraints:?|\Z)",
         re.DOTALL,
     )
     cases: list[dict[str, Any]] = []

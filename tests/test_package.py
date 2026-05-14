@@ -17,6 +17,7 @@ from leet_chaser.leetcode_client import (
     build_remote_init_files,
     fetch_title_slug,
     format_remote_case_toml,
+    parse_entrypoint_from_python_code,
     parse_class_name_from_python_code,
     post_graphql,
 )
@@ -459,7 +460,9 @@ def test_build_remote_init_files_detects_operations_mode() -> None:
                 "[\"LRUCache\", \"put\", \"get\"]\n"
                 "[[2], [1, 1], [1]]\n"
                 "Output\n"
-                "[null, null, 1]</pre>"
+                "[null, null, 1]\n"
+                "Explanation\n"
+                "LRUCache lRUCache = new LRUCache(2);</pre>"
             ),
             parameter_names=[],
             case_mode="operations",
@@ -481,6 +484,76 @@ def test_parse_class_name_from_python_code_reads_operations_class() -> None:
         None.
     """
     assert parse_class_name_from_python_code("class LRUCache:\n    pass\n") == "LRUCache"
+
+
+def test_parse_entrypoint_requires_solution_class() -> None:
+    """Verify operations classes are not mistaken for normal Solution methods.
+
+    Args:
+        None.
+
+    Returns:
+        None.
+    """
+    with pytest.raises(LeetCodeClientError, match="Solution method"):
+        parse_entrypoint_from_python_code(
+            "class LRUCache:\n"
+            "    def __init__(self, capacity: int):\n"
+            "        pass\n"
+            "\n"
+            "    def get(self, key: int) -> int:\n"
+            "        pass\n"
+        )
+
+
+def test_fetch_question_metadata_detects_real_operations_snippet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify class-only LeetCode snippets are classified as operations mode.
+
+    Args:
+        monkeypatch: Pytest helper used to replace remote fetches.
+
+    Returns:
+        None.
+    """
+    monkeypatch.setattr("leet_chaser.leetcode_client.fetch_title_slug", lambda question_number: "lru-cache")
+    monkeypatch.setattr(
+        "leet_chaser.leetcode_client.fetch_question_data",
+        lambda title_slug: {
+            "title": "LRU Cache",
+            "titleSlug": title_slug,
+            "content": (
+                "<pre>Input\n"
+                "[\"LRUCache\", \"put\", \"get\"]\n"
+                "[[2], [1, 1], [1]]\n"
+                "Output\n"
+                "[null, null, 1]</pre>"
+            ),
+            "metaData": "{}",
+            "codeSnippets": [
+                {
+                    "langSlug": "python3",
+                    "code": (
+                        "class LRUCache:\n"
+                        "    def __init__(self, capacity: int):\n"
+                        "        pass\n"
+                        "\n"
+                        "    def get(self, key: int) -> int:\n"
+                        "        pass\n"
+                    ),
+                }
+            ],
+        },
+    )
+
+    from leet_chaser.leetcode_client import fetch_question_metadata
+
+    metadata = fetch_question_metadata(146)
+
+    assert metadata.case_mode == "operations"
+    assert metadata.entrypoint == "LRUCache"
+    assert metadata.class_name == "LRUCache"
 
 
 def test_fetch_title_slug_reads_problemset_data_field(monkeypatch: pytest.MonkeyPatch) -> None:

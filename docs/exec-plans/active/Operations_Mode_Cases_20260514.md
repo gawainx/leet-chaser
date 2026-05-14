@@ -69,3 +69,15 @@
 - Function: 运行回归测试，更新计划任务状态和实现记录，并按仓库提交规范提交。
 - Implementation Notes: 已运行 `uv run pytest tests/test_package.py tests/test_case_file.py tests/test_runner.py -q` 和 `uv run pytest -q`；提交信息使用 Conventional Commit，例如 `feat: add operations mode cases`。
 - Expected Verification Result: 全量测试通过；工作区只包含本需求相关改动；提交后工作区干净。
+
+## Stage #4: Acceptance Bug Fix
+
+### Task #7: 修复 146 远端模板误识别
+
+**Status:** Finished
+
+**Files:** Modify `src/leet_chaser/leetcode_client.py`, `tests/test_package.py`; Verify targeted parser tests and full suite.
+
+- Function: 修复 `leet-chaser init -q 146` 把 `LRUCache.__init__` 误识别为普通 entrypoint 的问题。
+- Implementation Notes: 验收发现真实 146 Python snippet 是顶层 `class LRUCache`，现有入口解析只找任意四空格缩进方法，导致误把 `__init__` 当作普通题入口；同时真实题面 `Explanation` 没有冒号，旧正则会把说明文本拼进 output。已改为只在 `class Solution` 中解析普通 entrypoint，并允许 `Explanation`、`Example N`、`Constraints` 终止符省略冒号。
+- Expected Verification Result: 146 风格 snippet 识别为 `case_mode = "operations"`；Two Sum 风格 snippet 仍识别为普通 entrypoint；`uv --project /Users/yat/code/leet-chaser run leet-chaser init -q 146 fixed-lru-146-check` 已生成 operations TOML；`uv run pytest -q` 通过。
