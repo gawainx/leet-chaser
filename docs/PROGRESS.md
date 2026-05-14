@@ -1,3 +1,4 @@
+- (working) : 2026.05.14 优化题号初始化用户体验，`leet-chaser init --question-number/-q` 现在会输出拉取题号、已获取题目、生成本地文件和写入完成等步骤进度；普通本地模板 init 输出不变，README 和 docs/init-command.md 已补充说明，tests/test_package.py 覆盖进度输出。
 - (working) : 2026.05.14 优化题号初始化的 LeetCode 拉取错误提示，HTTP/GraphQL/network 错误会带上失败阶段、接口变化或网络不可达判断，公开题库查不到和付费题会单独说明；README 和 docs/init-command.md 已记录诊断语义，tests/test_package.py 覆盖 HTTP 400、GraphQL schema error、网络不可达、付费题和公开题库查不到。
 - (working) : 2026.05.14 开始实现按 LeetCode 题号初始化，`leet-chaser init --question-number/-q 1` 会拉取公开题目的 Python3 模板和题面示例，默认创建 `lt001.twoSum` 这类 `lt{题号三位}.{入口名}` 目录；新增 leet_chaser.leetcode_client 负责公开 GraphQL 拉取、Python3 snippet 解析和 example 转 TOML，CLI 已接入参数冲突与目录写入保护，README、docs/init-command.md、设计文档和开发计划已同步，tests/test_package.py 覆盖默认目录、自定义目录和 `-q`/`-t` 冲突。
 - (working) : 2026.05.13 补充 init 矩阵模板，`-t matrix`、`-t grid` 和 `-t 2d-array` 会生成二维数组输入示例，不额外声明 `input_types`；README、docs/init-command.md、init 设计文档和开发计划已更新，tests/test_package.py 覆盖矩阵模板解析和 alias。

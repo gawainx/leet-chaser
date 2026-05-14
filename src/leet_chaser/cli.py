@@ -180,7 +180,14 @@ def init(
 
     if question_number is not None:
         try:
-            init_files = build_remote_init_files(fetch_question_metadata(question_number))
+            console.print(f"Fetching LeetCode question {question_number}...")
+            metadata = fetch_question_metadata(question_number)
+            console.print(
+                f"Fetched question {question_number}: {metadata.title} "
+                f"({metadata.title_slug})"
+            )
+            console.print(f"Generating local files for {metadata.entrypoint}...")
+            init_files = build_remote_init_files(metadata)
         except LeetCodeClientError as error:
             raise typer.BadParameter(str(error), param_hint="question-number") from error
         project_name = normalize_project_name(name) if name is not None else init_files.directory_name
@@ -204,6 +211,8 @@ def init(
     (project_dir / "solution.py").write_text(solution_text, encoding="utf-8")
     (project_dir / "cases.toml").write_text(case_text, encoding="utf-8")
 
+    if question_number is not None:
+        console.print("Wrote solution.py and cases.toml")
     console.print(f"Created [bold green]{project_name}[/bold green]")
 
 

@@ -209,6 +209,10 @@ def test_init_creates_remote_question_workspace(
         entrypoint="twoSum",
         cases=[Case(input=[[2, 7, 11, 15], 9], output=[0, 1])],
     )
+    assert "Fetching LeetCode question 1" in result.output
+    assert "Fetched question 1: Two Sum (two-sum)" in result.output
+    assert "Generating local files for twoSum" in result.output
+    assert "Wrote solution.py and cases.toml" in result.output
     assert "Created lt001.twoSum" in result.output
 
 
