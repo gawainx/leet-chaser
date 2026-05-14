@@ -17,6 +17,9 @@ from leet_chaser.tree_types import TREE_TYPE_NAMES, build_binary_tree
 
 RAW_TYPE_NAME = "raw"
 CASE_TYPE_NAMES = LINKED_TYPE_NAMES | TREE_TYPE_NAMES | frozenset({RAW_TYPE_NAME})
+CASE_MODE_NORMAL = "normal"
+CASE_MODE_OPERATIONS = "operations"
+CASE_MODE_NAMES = frozenset({CASE_MODE_NORMAL, CASE_MODE_OPERATIONS})
 
 
 @dataclass(frozen=True)
@@ -35,6 +38,21 @@ class Case:
 
 
 @dataclass(frozen=True)
+class OperationCase:
+    """A single operation-sequence test case.
+
+    Attributes:
+        operations: Constructor and method names in call order.
+        input: Positional argument arrays aligned to ``operations``.
+        output: Expected return values aligned to ``operations``.
+    """
+
+    operations: list[str]
+    input: list[list[Any]]
+    output: list[Any]
+
+
+@dataclass(frozen=True)
 class CaseFile:
     """A parsed Leet-Chaser case file.
 
@@ -46,6 +64,9 @@ class CaseFile:
         inplace_write: Whether comparisons should use a mutated input argument.
         inplace_index: Zero-based input argument index used for inplace comparison.
         unordered_output: Whether list output comparisons should ignore element order.
+        mode: Case execution mode.
+        class_name: Class name used by operations mode.
+        operation_cases: Operation-sequence cases used by operations mode.
     """
 
     entrypoint: str
@@ -55,6 +76,9 @@ class CaseFile:
     inplace_write: bool = False
     inplace_index: int | None = None
     unordered_output: bool = False
+    mode: str = CASE_MODE_NORMAL
+    class_name: str | None = None
+    operation_cases: list[OperationCase] | None = None
 
 
 class CaseFileError(ValueError):
@@ -88,6 +112,25 @@ def write_case_file(path: Path, case_file: CaseFile) -> None:
     Returns:
         None.
     """
+    mode = _parse_case_mode(case_file.mode)
+    if mode == CASE_MODE_OPERATIONS:
+        class_name = _parse_class_name(case_file.class_name)
+        operation_cases = case_file.operation_cases or []
+        data = {
+            "mode": CASE_MODE_OPERATIONS,
+            "class_name": class_name,
+            "cases": [
+                {
+                    "operations": test_case.operations,
+                    "input": test_case.input,
+                    "output": test_case.output,
+                }
+                for test_case in operation_cases
+            ],
+        }
+        path.write_text(tomli_w.dumps(data), encoding="utf-8")
+        return
+
     entrypoint = _parse_entrypoint(case_file.entrypoint)
     data = {
         "entrypoint": entrypoint,
@@ -123,6 +166,24 @@ def parse_case_data(data: dict[str, Any]) -> CaseFile:
     Raises:
         CaseFileError: If required fields are missing or have invalid types.
     """
+    mode = _parse_case_mode(data.get("mode"))
+    if mode == CASE_MODE_OPERATIONS:
+        class_name = _parse_class_name(data.get("class_name"))
+        raw_cases = data.get("cases")
+        if not isinstance(raw_cases, list):
+            raise CaseFileError("case file must contain a top-level [[cases]] array")
+        operation_cases = [
+            _parse_operation_case(raw_case, index, class_name)
+            for index, raw_case in enumerate(raw_cases, start=1)
+        ]
+        return CaseFile(
+            entrypoint="",
+            cases=[],
+            mode=CASE_MODE_OPERATIONS,
+            class_name=class_name,
+            operation_cases=operation_cases,
+        )
+
     entrypoint = _parse_entrypoint(data.get("entrypoint"))
     input_types = _parse_input_types(data.get("input_types"))
     output_type = _parse_case_type(data.get("output_type"), "output_type")
@@ -147,7 +208,48 @@ def parse_case_data(data: dict[str, Any]) -> CaseFile:
         inplace_write=inplace_write,
         inplace_index=inplace_index,
         unordered_output=unordered_output,
+        mode=CASE_MODE_NORMAL,
     )
+
+
+def _parse_case_mode(raw_mode: Any) -> str:
+    """Parse and validate the top-level case execution mode.
+
+    Args:
+        raw_mode: Raw ``mode`` value loaded from TOML.
+
+    Returns:
+        The selected case execution mode.
+
+    Raises:
+        CaseFileError: If the mode is unsupported.
+    """
+    if raw_mode is None:
+        return CASE_MODE_NORMAL
+    if not isinstance(raw_mode, str):
+        raise CaseFileError("mode must be a string")
+    mode = raw_mode.strip()
+    if mode not in CASE_MODE_NAMES:
+        supported_modes = ", ".join(sorted(CASE_MODE_NAMES))
+        raise CaseFileError(f"mode must be one of: {supported_modes}")
+    return mode
+
+
+def _parse_class_name(raw_class_name: Any) -> str:
+    """Parse and validate an operations mode class name.
+
+    Args:
+        raw_class_name: Raw ``class_name`` value loaded from TOML.
+
+    Returns:
+        The stripped class name.
+
+    Raises:
+        CaseFileError: If the class name is missing or empty.
+    """
+    if not isinstance(raw_class_name, str) or not raw_class_name.strip():
+        raise CaseFileError("operations mode must define a non-empty class_name string")
+    return raw_class_name.strip()
 
 
 def _parse_entrypoint(raw_entrypoint: Any) -> str:
@@ -348,6 +450,105 @@ def _parse_case(
     parsed_output = _parse_typed_value(raw_case["output"], output_type, f"cases[{index}].output")
 
     return Case(input=parsed_input, output=parsed_output, output_type=output_type)
+
+
+def _parse_operation_case(raw_case: Any, index: int, class_name: str) -> OperationCase:
+    """Parse one operations mode case table.
+
+    Args:
+        raw_case: Raw case object loaded from TOML.
+        index: One-based case index used in error messages.
+        class_name: Expected constructor operation name.
+
+    Returns:
+        A validated operation-sequence case.
+
+    Raises:
+        CaseFileError: If the operation case is malformed.
+    """
+    if not isinstance(raw_case, dict):
+        raise CaseFileError(f"cases[{index}] must be a table")
+
+    operations = _parse_operations(raw_case.get("operations"), index)
+    input_value = _parse_operation_inputs(raw_case.get("input"), index)
+    output = _parse_operation_outputs(raw_case.get("output"), index)
+    if len(operations) != len(input_value) or len(operations) != len(output):
+        raise CaseFileError(
+            f"cases[{index}] operations, input, and output must have matching lengths"
+        )
+    if operations[0] != class_name:
+        raise CaseFileError(
+            f"cases[{index}].operations[0] must match class_name {class_name!r}"
+        )
+    return OperationCase(operations=operations, input=input_value, output=output)
+
+
+def _parse_operations(raw_operations: Any, case_index: int) -> list[str]:
+    """Parse operations mode operation names.
+
+    Args:
+        raw_operations: Raw ``operations`` value loaded from TOML.
+        case_index: One-based case index used in error messages.
+
+    Returns:
+        Non-empty operation name list.
+
+    Raises:
+        CaseFileError: If operations are missing or invalid.
+    """
+    if not isinstance(raw_operations, list) or not raw_operations:
+        raise CaseFileError(f"cases[{case_index}].operations must be a non-empty array")
+    operations: list[str] = []
+    for operation_index, operation in enumerate(raw_operations):
+        if not isinstance(operation, str) or not operation.strip():
+            raise CaseFileError(
+                f"cases[{case_index}].operations[{operation_index}] must be a non-empty string"
+            )
+        operations.append(operation.strip())
+    return operations
+
+
+def _parse_operation_inputs(raw_input: Any, case_index: int) -> list[list[Any]]:
+    """Parse operations mode call argument arrays.
+
+    Args:
+        raw_input: Raw ``input`` value loaded from TOML.
+        case_index: One-based case index used in error messages.
+
+    Returns:
+        Argument arrays aligned to operation names.
+
+    Raises:
+        CaseFileError: If inputs are missing or invalid.
+    """
+    if not isinstance(raw_input, list):
+        raise CaseFileError(f"cases[{case_index}].input must be an array")
+    inputs: list[list[Any]] = []
+    for input_index, arguments in enumerate(raw_input):
+        if not isinstance(arguments, list):
+            raise CaseFileError(
+                f"cases[{case_index}].input[{input_index}] must be an array of arguments"
+            )
+        inputs.append(arguments)
+    return inputs
+
+
+def _parse_operation_outputs(raw_output: Any, case_index: int) -> list[Any]:
+    """Parse operations mode expected return values.
+
+    Args:
+        raw_output: Raw ``output`` value loaded from TOML.
+        case_index: One-based case index used in error messages.
+
+    Returns:
+        Expected values aligned to operation names.
+
+    Raises:
+        CaseFileError: If outputs are missing or invalid.
+    """
+    if not isinstance(raw_output, list):
+        raise CaseFileError(f"cases[{case_index}].output must be an array")
+    return raw_output
 
 
 def _parse_typed_value(value: Any, value_type: str, field_name: str) -> Any:

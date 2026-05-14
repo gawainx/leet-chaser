@@ -62,6 +62,130 @@ output = [0, 1]
     assert result.passed[0].actual == [0, 1]
 
 
+def test_run_problem_executes_operations_mode_case(tmp_path: Path) -> None:
+    """Verify operation sequences construct and call a design-problem class.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "lru-cache"
+    write_problem(
+        problem_dir,
+        """
+class LRUCache:
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.values = {}
+
+    def get(self, key):
+        return self.values.get(key, -1)
+
+    def put(self, key, value):
+        self.values[key] = value
+""",
+        """
+mode = "operations"
+class_name = "LRUCache"
+
+[[cases]]
+operations = ["LRUCache", "put", "get", "get"]
+input = [[2], [1, 1], [1], [2]]
+output = ["null", "null", 1, -1]
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert result.total_count == 4
+    assert not result.has_failures
+    assert [(case.step, case.operation, case.actual) for case in result.passed] == [
+        (1, "LRUCache", None),
+        (2, "put", None),
+        (3, "get", 1),
+        (4, "get", -1),
+    ]
+
+
+def test_run_problem_reports_operations_mode_failed_step(tmp_path: Path) -> None:
+    """Verify operations failures include step and operation context.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "broken-cache"
+    write_problem(
+        problem_dir,
+        """
+class LRUCache:
+    def __init__(self, capacity):
+        self.capacity = capacity
+
+    def get(self, key):
+        return 99
+""",
+        """
+mode = "operations"
+class_name = "LRUCache"
+
+[[cases]]
+operations = ["LRUCache", "get"]
+input = [[2], [1]]
+output = ["null", -1]
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert result.failed == [
+        FailedCaseResult(index=1, input=[1], expected=-1, actual=99, step=2, operation="get")
+    ]
+
+
+def test_run_problem_reports_operations_mode_error_step(tmp_path: Path) -> None:
+    """Verify operations errors include step and operation context.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "error-cache"
+    write_problem(
+        problem_dir,
+        """
+class LRUCache:
+    def __init__(self, capacity):
+        self.capacity = capacity
+
+    def get(self, key):
+        raise RuntimeError("boom")
+""",
+        """
+mode = "operations"
+class_name = "LRUCache"
+
+[[cases]]
+operations = ["LRUCache", "get"]
+input = [[2], [1]]
+output = ["null", -1]
+""",
+    )
+
+    result = run_problem(problem_dir)
+
+    assert len(result.errors) == 1
+    assert result.errors[0].step == 2
+    assert result.errors[0].operation == "get"
+    assert result.errors[0].error_message == "boom"
+
+
 def test_run_problem_creates_fresh_solution_instance_per_case(tmp_path: Path) -> None:
     """Verify instance variables do not leak between test cases.
 

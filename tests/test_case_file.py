@@ -4,7 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from leet_chaser.case_file import Case, CaseFile, CaseFileError, read_case_file, write_case_file
+from leet_chaser.case_file import (
+    CASE_MODE_OPERATIONS,
+    Case,
+    CaseFile,
+    CaseFileError,
+    OperationCase,
+    read_case_file,
+    write_case_file,
+)
 from leet_chaser.linked_types import (
     DoublyListNode,
     ListNode,
@@ -103,6 +111,100 @@ def test_write_case_file_round_trips_unordered_output(tmp_path: Path) -> None:
     write_case_file(case_file, source_case_file)
 
     assert read_case_file(case_file) == source_case_file
+
+
+def test_read_case_file_parses_operations_mode(tmp_path: Path) -> None:
+    """Verify operations mode keeps LeetCode-style operation arrays.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+mode = "operations"
+class_name = "LRUCache"
+
+[[cases]]
+operations = ["LRUCache", "put", "get"]
+input = [[2], [1, 1], [1]]
+output = ["null", "null", 1]
+""",
+        encoding="utf-8",
+    )
+
+    parsed_case_file = read_case_file(case_file)
+
+    assert parsed_case_file == CaseFile(
+        entrypoint="",
+        cases=[],
+        mode=CASE_MODE_OPERATIONS,
+        class_name="LRUCache",
+        operation_cases=[
+            OperationCase(
+                operations=["LRUCache", "put", "get"],
+                input=[[2], [1, 1], [1]],
+                output=["null", "null", 1],
+            )
+        ],
+    )
+
+
+def test_read_case_file_rejects_mismatched_operations_lengths(tmp_path: Path) -> None:
+    """Verify operations arrays must stay aligned.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+mode = "operations"
+class_name = "LRUCache"
+
+[[cases]]
+operations = ["LRUCache", "get"]
+input = [[2]]
+output = ["null", -1]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CaseFileError, match="matching lengths"):
+        read_case_file(case_file)
+
+
+def test_read_case_file_rejects_operations_constructor_mismatch(tmp_path: Path) -> None:
+    """Verify the first operation must match class_name.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    case_file = tmp_path / "cases.toml"
+    case_file.write_text(
+        """
+mode = "operations"
+class_name = "LRUCache"
+
+[[cases]]
+operations = ["Cache", "get"]
+input = [[2], [1]]
+output = ["null", -1]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CaseFileError, match="must match class_name"):
+        read_case_file(case_file)
 
 
 def test_read_case_file_parses_linked_list_type_metadata(tmp_path: Path) -> None:

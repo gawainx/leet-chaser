@@ -11,6 +11,8 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+CASE_MODE_NORMAL = "normal"
+CASE_MODE_OPERATIONS = "operations"
 GRAPHQL_URL = "https://leetcode.com/graphql"
 REQUEST_TIMEOUT_SECONDS = 10
 
@@ -28,6 +30,8 @@ class LeetCodeQuestionMetadata:
         title: Human-readable question title.
         title_slug: LeetCode question slug.
         entrypoint: Python solution method name.
+        case_mode: Generated case file mode.
+        class_name: Class name used by operations mode questions.
         python_code: Python3 code snippet for ``solution.py``.
         content_html: HTML problem statement containing examples.
         parameter_names: Solution parameter names in positional order.
@@ -40,6 +44,8 @@ class LeetCodeQuestionMetadata:
     python_code: str
     content_html: str
     parameter_names: list[str]
+    case_mode: str = CASE_MODE_NORMAL
+    class_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -72,15 +78,26 @@ def fetch_question_metadata(question_number: int) -> LeetCodeQuestionMetadata:
     title_slug = fetch_title_slug(question_number)
     question_data = fetch_question_data(title_slug)
     python_code = parse_python_code(question_data)
-    entrypoint = parse_entrypoint_from_python_code(python_code)
+    try:
+        entrypoint = parse_entrypoint_from_python_code(python_code)
+        case_mode = CASE_MODE_NORMAL
+        class_name = None
+        parameter_names = parse_parameter_names(question_data, entrypoint)
+    except LeetCodeClientError:
+        class_name = parse_class_name_from_python_code(python_code)
+        entrypoint = class_name
+        case_mode = CASE_MODE_OPERATIONS
+        parameter_names = []
     return LeetCodeQuestionMetadata(
         question_number=question_number,
         title=parse_required_string(question_data, "title"),
         title_slug=parse_required_string(question_data, "titleSlug"),
         entrypoint=entrypoint,
+        case_mode=case_mode,
+        class_name=class_name,
         python_code=python_code,
         content_html=parse_required_string(question_data, "content"),
-        parameter_names=parse_parameter_names(question_data, entrypoint),
+        parameter_names=parameter_names,
     )
 
 
@@ -295,7 +312,11 @@ def build_remote_init_files(metadata: LeetCodeQuestionMetadata) -> RemoteInitFil
     Raises:
         LeetCodeClientError: If no runnable examples can be generated.
     """
-    cases = parse_examples(metadata.content_html, metadata.parameter_names)
+    cases = parse_examples(
+        metadata.content_html,
+        metadata.parameter_names,
+        case_mode=metadata.case_mode,
+    )
     if not cases:
         raise LeetCodeClientError(
             f"could not parse examples for question {metadata.question_number}"
@@ -305,20 +326,49 @@ def build_remote_init_files(metadata: LeetCodeQuestionMetadata) -> RemoteInitFil
     return RemoteInitFiles(
         directory_name=f"{question_prefix}.{metadata.entrypoint}",
         solution_text=metadata.python_code.rstrip() + "\n",
-        case_text=format_remote_case_toml(metadata.entrypoint, cases),
+        case_text=format_remote_case_toml(
+            metadata.entrypoint,
+            cases,
+            case_mode=metadata.case_mode,
+            class_name=metadata.class_name,
+        ),
     )
 
 
-def format_remote_case_toml(entrypoint: str, cases: list[dict[str, Any]]) -> str:
+def format_remote_case_toml(
+    entrypoint: str,
+    cases: list[dict[str, Any]],
+    case_mode: str = CASE_MODE_NORMAL,
+    class_name: str | None = None,
+) -> str:
     """Format remote init cases into readable TOML.
 
     Args:
         entrypoint: Solution method name used by the case file.
         cases: Case dictionaries containing ``input`` and ``output`` values.
+        case_mode: Generated case file mode.
+        class_name: Class name used by operations mode questions.
 
     Returns:
         TOML text where one-dimensional arrays stay on one line.
     """
+    if case_mode == CASE_MODE_OPERATIONS:
+        if class_name is None:
+            raise LeetCodeClientError("operations mode requires class_name")
+        lines = [
+            f"mode = {format_toml_value(CASE_MODE_OPERATIONS)}",
+            f"class_name = {format_toml_value(class_name)}",
+            "",
+        ]
+        for index, test_case in enumerate(cases):
+            if index > 0:
+                lines.append("")
+            lines.append("[[cases]]")
+            lines.append(f"operations = {format_toml_value(test_case['operations'])}")
+            lines.append(f"input = {format_toml_value(test_case['input'])}")
+            lines.append(f"output = {format_toml_value(test_case['output'])}")
+        return "\n".join(lines) + "\n"
+
     lines = [f'entrypoint = {format_toml_value(entrypoint)}', ""]
     for index, test_case in enumerate(cases):
         if index > 0:
@@ -417,6 +467,24 @@ def parse_entrypoint_from_python_code(python_code: str) -> str:
     return match.group(1)
 
 
+def parse_class_name_from_python_code(python_code: str) -> str:
+    """Parse the top-level class name from a Python operations snippet.
+
+    Args:
+        python_code: Python3 code snippet.
+
+    Returns:
+        Top-level class name.
+
+    Raises:
+        LeetCodeClientError: If no class definition is found.
+    """
+    match = re.search(r"^class\s+([A-Za-z_][A-Za-z0-9_]*)\s*[:(]", python_code, re.MULTILINE)
+    if match is None:
+        raise LeetCodeClientError("could not find a class in the Python3 snippet")
+    return match.group(1)
+
+
 def parse_parameter_names(question_data: dict[str, Any], entrypoint: str) -> list[str]:
     """Parse positional parameter names for the solution method.
 
@@ -475,30 +543,72 @@ def parse_required_string(question_data: dict[str, Any], key: str) -> str:
     return value
 
 
-def parse_examples(content_html: str, parameter_names: list[str]) -> list[dict[str, Any]]:
+def parse_examples(
+    content_html: str,
+    parameter_names: list[str],
+    case_mode: str = CASE_MODE_NORMAL,
+) -> list[dict[str, Any]]:
     """Parse LeetCode statement examples into TOML case dictionaries.
 
     Args:
         content_html: LeetCode problem statement HTML.
         parameter_names: Solution parameter names in positional order.
+        case_mode: Generated case file mode.
 
     Returns:
         Case dictionaries compatible with ``tomli_w``.
     """
     text = html_to_text(content_html)
     pattern = re.compile(
-        r"Input:\s*(?P<input>.*?)\s*Output:\s*(?P<output>.*?)(?:\s*Explanation:|\s*Example\s+\d+:|\s*Constraints:|\Z)",
+        r"Input:?\s*(?P<input>.*?)\s*Output:?\s*(?P<output>.*?)(?:\s*Explanation:|\s*Example\s+\d+:|\s*Constraints:|\Z)",
         re.DOTALL,
     )
     cases: list[dict[str, Any]] = []
     for match in pattern.finditer(text):
         try:
-            case_input = parse_example_input(match.group("input").strip(), parameter_names)
-            case_output = parse_leetcode_value(match.group("output").strip())
+            if case_mode == CASE_MODE_OPERATIONS:
+                case = parse_operations_example(
+                    match.group("input").strip(),
+                    match.group("output").strip(),
+                )
+            else:
+                case_input = parse_example_input(match.group("input").strip(), parameter_names)
+                case_output = parse_leetcode_value(match.group("output").strip())
+                case = {"input": case_input, "output": case_output}
         except LeetCodeClientError:
             continue
-        cases.append({"input": case_input, "output": case_output})
+        cases.append(case)
     return cases
+
+
+def parse_operations_example(raw_input: str, raw_output: str) -> dict[str, Any]:
+    """Parse a LeetCode operations example into a case dictionary.
+
+    Args:
+        raw_input: Text between ``Input`` and ``Output``.
+        raw_output: Text after ``Output``.
+
+    Returns:
+        Operation names, input argument arrays, and expected outputs.
+
+    Raises:
+        LeetCodeClientError: If the example is not a valid operations case.
+    """
+    input_lines = [line.strip() for line in raw_input.splitlines() if line.strip()]
+    if len(input_lines) < 2:
+        raise LeetCodeClientError("operations example input must contain operations and input arrays")
+    operations = parse_leetcode_value(input_lines[0])
+    inputs = parse_leetcode_value(input_lines[1])
+    output = parse_leetcode_value(raw_output)
+    if not isinstance(operations, list) or not all(isinstance(operation, str) for operation in operations):
+        raise LeetCodeClientError("operations example operation names must be an array of strings")
+    if not isinstance(inputs, list) or not all(isinstance(arguments, list) for arguments in inputs):
+        raise LeetCodeClientError("operations example input must be an array of argument arrays")
+    if not isinstance(output, list):
+        raise LeetCodeClientError("operations example output must be an array")
+    if len(operations) != len(inputs) or len(operations) != len(output):
+        raise LeetCodeClientError("operations example arrays must have matching lengths")
+    return {"operations": operations, "input": inputs, "output": output}
 
 
 def html_to_text(content_html: str) -> str:

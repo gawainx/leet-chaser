@@ -9,13 +9,15 @@ import pytest
 from typer.testing import CliRunner
 
 from leet_chaser import __version__
-from leet_chaser.case_file import Case, CaseFile, parse_case_data, read_case_file
+from leet_chaser.case_file import CASE_MODE_OPERATIONS, Case, CaseFile, OperationCase, parse_case_data, read_case_file
 from leet_chaser.cli import app, normalize_project_name, resolve_init_case_type
 from leet_chaser.leetcode_client import (
     LeetCodeClientError,
     LeetCodeQuestionMetadata,
+    build_remote_init_files,
     fetch_title_slug,
     format_remote_case_toml,
+    parse_class_name_from_python_code,
     post_graphql,
 )
 from leet_chaser.tree_types import binary_tree_to_array
@@ -230,6 +232,60 @@ def test_init_creates_remote_question_workspace(
     assert "Created lt001.twoSum" in result.output
 
 
+def test_init_creates_remote_operations_question_workspace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Verify init can create an operations mode workspace from LeetCode metadata.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+        monkeypatch: Pytest helper used to run the command from tmp_path.
+
+    Returns:
+        None.
+    """
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "leet_chaser.cli.fetch_question_metadata",
+        lambda question_number: LeetCodeQuestionMetadata(
+            question_number=question_number,
+            title="LRU Cache",
+            title_slug="lru-cache",
+            entrypoint="LRUCache",
+            python_code="class LRUCache:\n    def __init__(self, capacity: int):\n        pass\n",
+            content_html=(
+                "<p><strong>Example 1:</strong></p><pre>"
+                "<strong>Input</strong><br>"
+                "[\"LRUCache\", \"put\", \"get\"]<br>"
+                "[[2], [1, 1], [1]]<br>"
+                "<strong>Output</strong><br>"
+                "[null, null, 1]</pre>"
+            ),
+            parameter_names=[],
+            case_mode="operations",
+            class_name="LRUCache",
+        ),
+    )
+
+    result = runner.invoke(app, ["init", "-q", "146"], catch_exceptions=False, env={})
+
+    project_dir = tmp_path / "lt146.LRUCache"
+    assert result.exit_code == 0
+    assert read_case_file(project_dir / "cases.toml") == CaseFile(
+        entrypoint="",
+        cases=[],
+        mode=CASE_MODE_OPERATIONS,
+        class_name="LRUCache",
+        operation_cases=[
+            OperationCase(
+                operations=["LRUCache", "put", "get"],
+                input=[[2], [1, 1], [1]],
+                output=["null", "null", 1],
+            )
+        ],
+    )
+
+
 def test_init_remote_question_accepts_custom_directory_name(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -340,6 +396,91 @@ def test_remote_case_toml_formats_two_dimensional_arrays_across_lines() -> None:
         entrypoint="searchMatrix",
         cases=[Case(input=[[[1, 3], [5, 7]], 3], output=True)],
     )
+
+
+def test_remote_case_toml_formats_operations_mode() -> None:
+    """Verify generated remote TOML supports operations mode cases.
+
+    Args:
+        None.
+
+    Returns:
+        None.
+    """
+    case_text = format_remote_case_toml(
+        "LRUCache",
+        [
+            {
+                "operations": ["LRUCache", "put", "get"],
+                "input": [[2], [1, 1], [1]],
+                "output": ["null", "null", 1],
+            }
+        ],
+        case_mode="operations",
+        class_name="LRUCache",
+    )
+
+    assert 'mode = "operations"' in case_text
+    assert 'class_name = "LRUCache"' in case_text
+    assert "operations = [\"LRUCache\", \"put\", \"get\"]" in case_text
+    assert read_case_file_text(case_text) == CaseFile(
+        entrypoint="",
+        cases=[],
+        mode=CASE_MODE_OPERATIONS,
+        class_name="LRUCache",
+        operation_cases=[
+            OperationCase(
+                operations=["LRUCache", "put", "get"],
+                input=[[2], [1, 1], [1]],
+                output=["null", "null", 1],
+            )
+        ],
+    )
+
+
+def test_build_remote_init_files_detects_operations_mode() -> None:
+    """Verify class-only snippets generate operations mode init files.
+
+    Args:
+        None.
+
+    Returns:
+        None.
+    """
+    init_files = build_remote_init_files(
+        LeetCodeQuestionMetadata(
+            question_number=146,
+            title="LRU Cache",
+            title_slug="lru-cache",
+            entrypoint="LRUCache",
+            python_code="class LRUCache:\n    def __init__(self, capacity: int):\n        pass\n",
+            content_html=(
+                "<pre>Input\n"
+                "[\"LRUCache\", \"put\", \"get\"]\n"
+                "[[2], [1, 1], [1]]\n"
+                "Output\n"
+                "[null, null, 1]</pre>"
+            ),
+            parameter_names=[],
+            case_mode="operations",
+            class_name="LRUCache",
+        )
+    )
+
+    assert init_files.directory_name == "lt146.LRUCache"
+    assert read_case_file_text(init_files.case_text).mode == CASE_MODE_OPERATIONS
+
+
+def test_parse_class_name_from_python_code_reads_operations_class() -> None:
+    """Verify operations snippets expose their top-level class name.
+
+    Args:
+        None.
+
+    Returns:
+        None.
+    """
+    assert parse_class_name_from_python_code("class LRUCache:\n    pass\n") == "LRUCache"
 
 
 def test_fetch_title_slug_reads_problemset_data_field(monkeypatch: pytest.MonkeyPatch) -> None:

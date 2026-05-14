@@ -7,7 +7,7 @@ import traceback
 from types import ModuleType
 from typing import Any
 
-from leet_chaser.case_file import Case, CaseFile, read_case_file
+from leet_chaser.case_file import CASE_MODE_OPERATIONS, Case, CaseFile, read_case_file
 from leet_chaser.linked_types import LINKED_TYPE_NAMES, normalize_linked_value
 from leet_chaser.tree_types import TREE_TYPE_NAMES, normalize_tree_value
 
@@ -25,12 +25,16 @@ class PassedCaseResult:
         input: Positional arguments passed to the solution method.
         expected: Expected value configured in ``cases.toml``.
         actual: Actual value returned by the solution method.
+        step: One-based operation step for operations mode results.
+        operation: Operation name for operations mode results.
     """
 
     index: int
     input: list[Any]
     expected: Any
     actual: Any
+    step: int | None = None
+    operation: str | None = None
 
 
 @dataclass(frozen=True)
@@ -42,12 +46,16 @@ class FailedCaseResult:
         input: Positional arguments passed to the solution method.
         expected: Expected value configured in ``cases.toml``.
         actual: Actual value returned by the solution method.
+        step: One-based operation step for operations mode results.
+        operation: Operation name for operations mode results.
     """
 
     index: int
     input: list[Any]
     expected: Any
     actual: Any
+    step: int | None = None
+    operation: str | None = None
 
 
 @dataclass(frozen=True)
@@ -61,6 +69,8 @@ class ErrorCaseResult:
         error_type: Exception class name raised by the case.
         error_message: String representation of the raised exception.
         traceback: Formatted traceback captured from the raised exception.
+        step: One-based operation step for operations mode errors.
+        operation: Operation name for operations mode errors.
     """
 
     index: int
@@ -69,6 +79,8 @@ class ErrorCaseResult:
     error_type: str
     error_message: str
     traceback: str
+    step: int | None = None
+    operation: str | None = None
 
 
 CaseResult = PassedCaseResult | FailedCaseResult | ErrorCaseResult
@@ -157,8 +169,13 @@ def run_problem(problem_dir: Path) -> ProblemRunResult:
 
     case_file = read_case_file(cases_path)
     module = load_solution_module(solution_path)
-    solution_class, method_name = resolve_solution_method(module, case_file.entrypoint)
-    passed, failed, errors, warnings = run_cases(solution_class, method_name, case_file)
+    if case_file.mode == CASE_MODE_OPERATIONS:
+        solution_class = resolve_operations_class(module, case_file)
+        method_name = case_file.class_name or ""
+        passed, failed, errors, warnings = run_operation_cases(solution_class, case_file)
+    else:
+        solution_class, method_name = resolve_solution_method(module, case_file.entrypoint)
+        passed, failed, errors, warnings = run_cases(solution_class, method_name, case_file)
     return ProblemRunResult(
         solution_path=solution_path,
         cases_path=cases_path,
@@ -216,6 +233,113 @@ def resolve_solution_method(module: ModuleType, entrypoint: str) -> tuple[type[A
         raise ProblemRunError(f"Solution must define callable entrypoint: {entrypoint}")
 
     return solution_class, entrypoint
+
+
+def resolve_operations_class(module: ModuleType, case_file: CaseFile) -> type[Any]:
+    """Resolve the configured operations mode class.
+
+    Args:
+        module: Loaded solution module.
+        case_file: Parsed operations mode case file.
+
+    Returns:
+        The class named by ``case_file.class_name``.
+
+    Raises:
+        ProblemRunError: If the class is missing or invalid.
+    """
+    class_name = case_file.class_name
+    if class_name is None:
+        raise ProblemRunError("operations mode must define class_name")
+    solution_class = getattr(module, class_name, None)
+    if not isinstance(solution_class, type):
+        raise ProblemRunError(f"solution.py must define an operations class: {class_name}")
+    return solution_class
+
+
+def run_operation_cases(
+    solution_class: type[Any],
+    case_file: CaseFile,
+) -> tuple[list[PassedCaseResult], list[FailedCaseResult], list[ErrorCaseResult], list[CaseWarning]]:
+    """Run operations mode cases against fresh class instances.
+
+    Args:
+        solution_class: Class to instantiate for each operation case.
+        case_file: Parsed operations mode case file.
+
+    Returns:
+        Passed, failed, errored, and warning result lists.
+    """
+    passed: list[PassedCaseResult] = []
+    failed: list[FailedCaseResult] = []
+    errors: list[ErrorCaseResult] = []
+    operation_cases = case_file.operation_cases or []
+
+    for index, test_case in enumerate(operation_cases, start=1):
+        instance: Any = None
+        for step, operation in enumerate(test_case.operations, start=1):
+            step_input = test_case.input[step - 1]
+            expected = normalize_operation_expected(test_case.output[step - 1])
+            try:
+                if step == 1:
+                    instance = solution_class(*step_input)
+                    actual = None
+                else:
+                    method = getattr(instance, operation)
+                    actual = method(*step_input)
+            except Exception as error:
+                errors.append(
+                    ErrorCaseResult(
+                        index=index,
+                        input=step_input,
+                        expected=expected,
+                        error_type=type(error).__name__,
+                        error_message=str(error),
+                        traceback="".join(traceback.format_exception(type(error), error, error.__traceback__)),
+                        step=step,
+                        operation=operation,
+                    )
+                )
+                break
+
+            if compare_case_values(actual, expected, case_file):
+                passed.append(
+                    PassedCaseResult(
+                        index=index,
+                        input=step_input,
+                        expected=expected,
+                        actual=actual,
+                        step=step,
+                        operation=operation,
+                    )
+                )
+            else:
+                failed.append(
+                    FailedCaseResult(
+                        index=index,
+                        input=step_input,
+                        expected=expected,
+                        actual=actual,
+                        step=step,
+                        operation=operation,
+                    )
+                )
+
+    return passed, failed, errors, []
+
+
+def normalize_operation_expected(value: Any) -> Any:
+    """Normalize an operations mode expected value for comparison.
+
+    Args:
+        value: Expected value parsed from TOML.
+
+    Returns:
+        ``None`` for LeetCode-style ``"null"`` placeholders, otherwise the value.
+    """
+    if value == "null":
+        return None
+    return value
 
 
 def run_cases(

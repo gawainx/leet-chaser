@@ -63,3 +63,26 @@ output = [[-1, -1, 2], [-1, 0, 1]]
 ```
 
 默认值为 `false`，所以 two-sum 这类顺序有意义的输出仍按原列表顺序严格比较。
+
+### Operations 模式
+
+LRU Cache 这类设计题可以使用 `mode = "operations"` 表达构造函数和实例方法调用序列。这个格式尽量贴近 LeetCode 原始示例，降低从题面复制 case 的成本：
+
+```toml
+mode = "operations"
+class_name = "LRUCache"
+
+[[cases]]
+operations = ["LRUCache", "put", "put", "get"]
+input = [[2], [1, 1], [2, 2], [1]]
+output = ["null", "null", "null", 1]
+```
+
+字段规则：
+
+- `class_name`：solution.py 中要构造的类名。
+- `operations`：构造函数和方法名数组，第一项必须等于 `class_name`。
+- `input`：每一步调用的位置参数数组，与 `operations` 同下标对齐。
+- `output`：每一步的期望返回值，与 `operations` 同下标对齐；LeetCode 的 `null` 写成 `"null"`，运行时按 Python `None` 比较。
+
+每个 `[[cases]]` 会创建一个新的类实例。第一版只支持单实例操作序列，不支持多实例交互、属性断言、自定义 comparator 或 debug operations。

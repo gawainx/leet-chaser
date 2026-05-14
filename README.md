@@ -60,6 +60,18 @@ leet-chaser init custom-two-sum -q 1
 
 拉取过程中会打印当前进度，包括题号查询、题目详情、文件生成和写入完成，网络较慢时也能看到命令正在执行到哪一步。
 
+LRU Cache 这类设计题会自动生成 operations 模式的 `cases.toml`，保留 LeetCode 原始的操作序列结构：
+
+```toml
+mode = "operations"
+class_name = "LRUCache"
+
+[[cases]]
+operations = ["LRUCache", "put", "put", "get"]
+input = [[2], [1, 1], [2, 2], [1]]
+output = ["null", "null", "null", 1]
+```
+
 命令会在当前目录创建一个题目文件夹：
 
 ```text
@@ -164,6 +176,20 @@ output = [[-1, -1, 2], [-1, 0, 1]]
 ```
 
 开启 `unordered_output` 后，列表输出会递归忽略元素顺序；未开启时仍按原始列表顺序严格比较。
+
+设计题可以使用 `mode = "operations"` 验证构造函数和实例方法调用序列。每个 case 的 `operations`、`input` 和 `output` 必须等长；第一项 operation 必须等于 `class_name`，第一项 input 用来构造实例，后续 input 用来调用同下标的方法：
+
+```toml
+mode = "operations"
+class_name = "LRUCache"
+
+[[cases]]
+operations = ["LRUCache", "put", "get"]
+input = [[2], [1, 1], [1]]
+output = ["null", "null", 1]
+```
+
+运行失败时，命令会显示具体 case、step 和 operation，方便定位是哪一次调用不符合预期。
 
 ### STEP 4: 运行验证
 

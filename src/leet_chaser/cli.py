@@ -235,7 +235,10 @@ def run(problem_dir: Path) -> None:
 
     console.print(f"Solution: {result.solution_path}")
     console.print(f"Cases: {result.cases_path}")
-    console.print(f"Entrypoint: {result.entrypoint}")
+    if result.entrypoint:
+        console.print(f"Entrypoint: {result.entrypoint}")
+    else:
+        console.print("Mode: operations")
 
     print_warnings(result.warnings)
     for test_case in result.passed:
@@ -337,6 +340,8 @@ def build_failure_table(result: ProblemRunResult) -> Table:
     """
     table = Table(title="Failed Cases")
     table.add_column("Case", justify="right")
+    table.add_column("Step", justify="right")
+    table.add_column("Operation")
     table.add_column("Input")
     table.add_column("Expected")
     table.add_column("Actual")
@@ -344,6 +349,8 @@ def build_failure_table(result: ProblemRunResult) -> Table:
     for test_case in result.failed:
         table.add_row(
             str(test_case.index),
+            "" if test_case.step is None else str(test_case.step),
+            test_case.operation or "",
             format_value(test_case.input),
             format_value(test_case.expected),
             format_value(test_case.actual),
@@ -361,7 +368,15 @@ def print_error_tracebacks(errors: list[ErrorCaseResult]) -> None:
         None.
     """
     for test_case in errors:
-        console.print(f"[red]ERROR[/red] case {test_case.index}: {test_case.error_type}: {test_case.error_message}")
+        step_text = (
+            ""
+            if test_case.step is None
+            else f" step {test_case.step} {test_case.operation or ''}"
+        )
+        console.print(
+            f"[red]ERROR[/red] case {test_case.index}{step_text}: "
+            f"{test_case.error_type}: {test_case.error_message}"
+        )
         console.print(f"Input: {format_value(test_case.input)}")
         console.print(f"Expected: {format_value(test_case.expected)}")
         console.print(test_case.traceback.rstrip())
