@@ -38,6 +38,37 @@ def read_case_file_text(case_text: str) -> CaseFile:
     return parse_case_data(tomllib.loads(case_text))
 
 
+def assert_normal_case_comments(case_text: str) -> None:
+    """Verify normal case templates expose optional configuration hints.
+
+    Args:
+        case_text: Raw TOML case file text.
+
+    Returns:
+        None.
+    """
+    assert "# input_types = [\"raw\"]" in case_text
+    assert "# output_type = \"raw\"" in case_text
+    assert "# inplace_write = true" in case_text
+    assert "# inplace_index = 0" in case_text
+    assert "# unordered_output = true" in case_text
+    assert "# mode = \"operations\"" in case_text
+
+
+def assert_operations_case_comments(case_text: str) -> None:
+    """Verify operations templates expose operation-specific hints.
+
+    Args:
+        case_text: Raw TOML case file text.
+
+    Returns:
+        None.
+    """
+    assert "# operations, input, and output must have the same length." in case_text
+    assert "# operations[0] must equal class_name" in case_text
+    assert "# Use \"null\" in output" in case_text
+
+
 def test_version_is_defined() -> None:
     """Verify the package exposes a version string.
 
@@ -77,8 +108,10 @@ def test_init_creates_solution_workspace(tmp_path: Path, monkeypatch: pytest.Mon
     result = runner.invoke(app, ["init", "two-sum"], catch_exceptions=False, env={})
 
     project_dir = tmp_path / "two-sum"
+    case_text = (project_dir / "cases.toml").read_text(encoding="utf-8")
     assert result.exit_code == 0
     assert (project_dir / "solution.py").read_text(encoding="utf-8") == ""
+    assert_normal_case_comments(case_text)
     assert read_case_file(project_dir / "cases.toml") == CaseFile(
         entrypoint="twoSum",
         cases=[
@@ -109,8 +142,10 @@ def test_init_creates_linked_list_case_template(tmp_path: Path, monkeypatch: pyt
     )
 
     project_dir = tmp_path / "reverse-list"
+    case_text = (project_dir / "cases.toml").read_text(encoding="utf-8")
     parsed_case_file = read_case_file(project_dir / "cases.toml")
     assert result.exit_code == 0
+    assert_normal_case_comments(case_text)
     assert parsed_case_file.entrypoint == "reverseList"
     assert parsed_case_file.input_types == ["linked_list"]
     assert parsed_case_file.output_type == "linked_list"
@@ -137,8 +172,10 @@ def test_init_creates_binary_tree_case_template(tmp_path: Path, monkeypatch: pyt
     )
 
     project_dir = tmp_path / "validate-bst"
+    case_text = (project_dir / "cases.toml").read_text(encoding="utf-8")
     parsed_case_file = read_case_file(project_dir / "cases.toml")
     assert result.exit_code == 0
+    assert_normal_case_comments(case_text)
     assert parsed_case_file.entrypoint == "isValidBST"
     assert parsed_case_file.input_types == ["binary_tree"]
     assert parsed_case_file.output_type == "raw"
@@ -173,8 +210,10 @@ def test_init_creates_matrix_case_template(tmp_path: Path, monkeypatch: pytest.M
     )
 
     project_dir = tmp_path / "search-matrix"
+    case_text = (project_dir / "cases.toml").read_text(encoding="utf-8")
     parsed_case_file = read_case_file(project_dir / "cases.toml")
     assert result.exit_code == 0
+    assert_normal_case_comments(case_text)
     assert parsed_case_file.entrypoint == "searchMatrix"
     assert parsed_case_file.input_types is None
     assert parsed_case_file.cases[0] == Case(
@@ -220,7 +259,9 @@ def test_init_creates_remote_question_workspace(
     result = runner.invoke(app, ["init", "-q", "1"], catch_exceptions=False, env={})
 
     project_dir = tmp_path / "lt001.twoSum"
+    case_text = (project_dir / "cases.toml").read_text(encoding="utf-8")
     assert result.exit_code == 0
+    assert_normal_case_comments(case_text)
     assert "def twoSum" in (project_dir / "solution.py").read_text(encoding="utf-8")
     assert read_case_file(project_dir / "cases.toml") == CaseFile(
         entrypoint="twoSum",
@@ -271,7 +312,9 @@ def test_init_creates_remote_operations_question_workspace(
     result = runner.invoke(app, ["init", "-q", "146"], catch_exceptions=False, env={})
 
     project_dir = tmp_path / "lt146.LRUCache"
+    case_text = (project_dir / "cases.toml").read_text(encoding="utf-8")
     assert result.exit_code == 0
+    assert_operations_case_comments(case_text)
     assert read_case_file(project_dir / "cases.toml") == CaseFile(
         entrypoint="",
         cases=[],
@@ -366,6 +409,7 @@ def test_remote_case_toml_keeps_one_dimensional_arrays_on_one_line() -> None:
     )
 
     assert "input = [\n    [0, 3, 7, 2, 5, 8, 4, 6, 0, 1],\n]" in case_text
+    assert_normal_case_comments(case_text)
     assert read_case_file_text(case_text) == CaseFile(
         entrypoint="longestConsecutive",
         cases=[Case(input=[[0, 3, 7, 2, 5, 8, 4, 6, 0, 1]], output=9)],
@@ -393,6 +437,7 @@ def test_remote_case_toml_formats_two_dimensional_arrays_across_lines() -> None:
 
     assert "        [1, 3]," in case_text
     assert "        [5, 7]," in case_text
+    assert_normal_case_comments(case_text)
     assert read_case_file_text(case_text) == CaseFile(
         entrypoint="searchMatrix",
         cases=[Case(input=[[[1, 3], [5, 7]], 3], output=True)],
@@ -424,6 +469,7 @@ def test_remote_case_toml_formats_operations_mode() -> None:
     assert 'mode = "operations"' in case_text
     assert 'class_name = "LRUCache"' in case_text
     assert "operations = [\"LRUCache\", \"put\", \"get\"]" in case_text
+    assert_operations_case_comments(case_text)
     assert read_case_file_text(case_text) == CaseFile(
         entrypoint="",
         cases=[],

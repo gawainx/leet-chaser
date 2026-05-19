@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from leet_chaser.case_templates import NORMAL_CASE_CONFIG_COMMENTS
 from leet_chaser.case_file import CaseFileError
 from leet_chaser.debugger import ProblemDebugError, ProblemDebugResult, debug_problem
 from leet_chaser.leetcode_client import (
@@ -21,7 +22,8 @@ app = typer.Typer(help="Run LeetCode solutions against local test cases.")
 console = Console()
 
 CASE_TEMPLATE_BY_TYPE = {
-    "raw": """entrypoint = "twoSum"
+    "raw": NORMAL_CASE_CONFIG_COMMENTS
+    + """entrypoint = "twoSum"
 
 [[cases]]
 input = [[2, 7, 11, 15], 9]
@@ -31,7 +33,8 @@ output = [0, 1]
 input = [["flower", "flow", "flight"]]
 output = "fl"
 """,
-    "linked_list": """entrypoint = "reverseList"
+    "linked_list": NORMAL_CASE_CONFIG_COMMENTS
+    + """entrypoint = "reverseList"
 input_types = ["linked_list"]
 output_type = "linked_list"
 
@@ -43,7 +46,8 @@ output = [5, 4, 3, 2, 1]
 input = [[]]
 output = []
 """,
-    "binary_tree": """entrypoint = "isValidBST"
+    "binary_tree": NORMAL_CASE_CONFIG_COMMENTS
+    + """entrypoint = "isValidBST"
 input_types = ["binary_tree"]
 
 [[cases]]
@@ -58,7 +62,8 @@ output = false
 input = [[]]
 output = true
 """,
-    "matrix": """entrypoint = "searchMatrix"
+    "matrix": NORMAL_CASE_CONFIG_COMMENTS
+    + """entrypoint = "searchMatrix"
 
 [[cases]]
 input = [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 3]

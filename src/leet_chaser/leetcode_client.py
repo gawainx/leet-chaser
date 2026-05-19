@@ -11,6 +11,11 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from leet_chaser.case_templates import (
+    NORMAL_CASE_CONFIG_COMMENTS,
+    OPERATIONS_CASE_CONFIG_COMMENTS,
+)
+
 CASE_MODE_NORMAL = "normal"
 CASE_MODE_OPERATIONS = "operations"
 GRAPHQL_URL = "https://leetcode.com/graphql"
@@ -355,7 +360,7 @@ def format_remote_case_toml(
     if case_mode == CASE_MODE_OPERATIONS:
         if class_name is None:
             raise LeetCodeClientError("operations mode requires class_name")
-        lines = [
+        lines = OPERATIONS_CASE_CONFIG_COMMENTS.splitlines() + [
             f"mode = {format_toml_value(CASE_MODE_OPERATIONS)}",
             f"class_name = {format_toml_value(class_name)}",
             "",
@@ -369,7 +374,10 @@ def format_remote_case_toml(
             lines.append(f"output = {format_toml_value(test_case['output'])}")
         return "\n".join(lines) + "\n"
 
-    lines = [f'entrypoint = {format_toml_value(entrypoint)}', ""]
+    lines = NORMAL_CASE_CONFIG_COMMENTS.splitlines() + [
+        f"entrypoint = {format_toml_value(entrypoint)}",
+        "",
+    ]
     for index, test_case in enumerate(cases):
         if index > 0:
             lines.append("")

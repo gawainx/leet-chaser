@@ -1,3 +1,4 @@
+- (working) : 2026.05.19 优化 init 生成的 `cases.toml` 模板，本地模板和题号初始化都会输出可取消注释的配置提示；普通模式提示 `input_types`、`output_type`、`inplace_write`、`inplace_index`、`unordered_output` 和类型枚举，operations 模式提示三数组对齐与构造函数规则；新增共享模板注释模块，tests/test_package.py 覆盖注释存在和解析结果不变。
 - (working) : 2026.05.14 优化题号初始化生成的 `cases.toml` 可读性，远程 init 不再使用默认 `tomli_w` 数组格式，改为一维数组单行、二维或更深层数组按嵌套层级换行；docs/init-command.md 已记录格式规则，tests/test_package.py 覆盖一维数组和二维矩阵格式并验证仍可解析。
 - (working) : 2026.05.14 优化题号初始化用户体验，`leet-chaser init --question-number/-q` 现在会输出拉取题号、已获取题目、生成本地文件和写入完成等步骤进度；普通本地模板 init 输出不变，README 和 docs/init-command.md 已补充说明，tests/test_package.py 覆盖进度输出。
 - (working) : 2026.05.14 优化题号初始化的 LeetCode 拉取错误提示，HTTP/GraphQL/network 错误会带上失败阶段、接口变化或网络不可达判断，公开题库查不到和付费题会单独说明；README 和 docs/init-command.md 已记录诊断语义，tests/test_package.py 覆盖 HTTP 400、GraphQL schema error、网络不可达、付费题和公开题库查不到。

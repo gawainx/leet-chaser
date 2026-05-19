@@ -34,6 +34,8 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 
 题号初始化生成的 `cases.toml` 会使用更适合阅读的数组格式：一维数组保持单行，二维或更深层数组按嵌套层级换行。这样数组题的样例不会被展开成每个元素一行，矩阵题仍保留行结构。operations 题会尽量保留 LeetCode 原始的 `operations/input/output` 三数组。
 
+所有 init 生成的 `cases.toml` 都会在文件顶部写入可取消注释的配置提示。普通模式模板会提示 `input_types`、`output_type`、`inplace_write`、`inplace_index` 和 `unordered_output`，并列出当前支持的高级类型。operations 模式模板会提示 `operations`、`input`、`output` 必须等长，且第一项操作必须等于 `class_name`。这些提示全部是 TOML 注释，默认不改变样例的运行行为。
+
 远程错误提示按失败阶段输出：题号查 slug 阶段使用 `lookup question number failed`，题目详情阶段使用 `fetch question detail failed`。HTTP 400/GraphQL error 会提示公开 GraphQL 查询或 schema 可能变化；网络错误会提示接口不可达；付费题和公开题库查不到会单独说明，方便后续定位是题目公开性问题、接口变化还是本地网络问题。
 
 ## 实现方法
@@ -56,6 +58,8 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 - `parse_examples(content_html, parameter_names)`：从题面 examples 中提取输入输出 case。
 - `parse_class_name_from_python_code(python_code)`：从设计题 Python3 snippet 中提取顶层类名。
 - `parse_operations_example(raw_input, raw_output)`：解析 LeetCode 设计题的操作名数组、参数数组和输出数组。
+- `leet_chaser.case_templates.NORMAL_CASE_CONFIG_COMMENTS`：普通模式 `cases.toml` 的可取消注释配置提示。
+- `leet_chaser.case_templates.OPERATIONS_CASE_CONFIG_COMMENTS`：operations 模式 `cases.toml` 的可取消注释配置提示。
 
 测试覆盖：
 
@@ -81,3 +85,4 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 - `test_remote_case_toml_formats_two_dimensional_arrays_across_lines`：验证二维数组按行换行。
 - `test_remote_case_toml_formats_operations_mode`：验证远程 init 可生成 operations mode TOML。
 - `test_build_remote_init_files_detects_operations_mode`：验证类模板 metadata 可生成 operations mode 文件。
+- 本地和远程 init 模板测试同时验证生成文本包含关键注释字段，且注释不会影响 `read_case_file` 解析。
