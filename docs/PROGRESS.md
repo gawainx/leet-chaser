@@ -1,4 +1,5 @@
 - (working) : 2026.05.20 修复题号初始化远程请求稳定性，`leet-chaser init --question-number/-q` 现在优先使用 `leetcode.cn` 拉取题号 slug 和题目详情，失败后回退 `leetcode.com`，并对短暂 timeout 或网络不可达做有限重试；docs/init-command.md 和设计文档已记录新行为，tests/test_package.py 覆盖中国站 schema、fallback 和 retry。
+- (2be80a2) : 2026.05.20 完成题号初始化远程请求稳定性收尾，默认路径从国际站切换为优先访问 leetcode.cn，并保留 leetcode.com 作为兜底来源；中国站题号查询采用 problemsetQuestionListV2 按题号偏移取候选并校验 frontend id，详情查询继续复用英文题面以保持现有样例解析稳定；请求层只对 timeout 和网络不可达做有限重试，HTTP 与 GraphQL schema 错误仍按确定性失败处理。
 - (working) : 2026.05.20 修正 init 注释模板验收问题，普通模式 `cases.toml` 的可取消注释配置区现在包含单链表、双向链表、循环链表和二叉树的 `input_types`、`output_type`、`input`、`output` 示例，不再只列高级类型枚举；tests/test_package.py 已补充高级类型注释断言。
 - (working) : 2026.05.19 优化 init 生成的 `cases.toml` 模板，本地模板和题号初始化都会输出可取消注释的配置提示；普通模式提示 `input_types`、`output_type`、`inplace_write`、`inplace_index`、`unordered_output` 和类型枚举，operations 模式提示三数组对齐与构造函数规则；新增共享模板注释模块，tests/test_package.py 覆盖注释存在和解析结果不变。
 - (working) : 2026.05.14 优化题号初始化生成的 `cases.toml` 可读性，远程 init 不再使用默认 `tomli_w` 数组格式，改为一维数组单行、二维或更深层数组按嵌套层级换行；docs/init-command.md 已记录格式规则，tests/test_package.py 覆盖一维数组和二维矩阵格式并验证仍可解析。
