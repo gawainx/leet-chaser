@@ -26,7 +26,7 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 
 链表和二叉树模板只默认每个 case 的第一个参数是特殊类型。矩阵模板不声明 `input_types`，只提供二维数组输入例子。
 
-传入 `--question-number/-q` 时，命令会先拉取题目元数据，再提取 Python3 snippet 的入口方法或操作类名和题面 examples。目录名默认使用 `lt{题号三位}.{入口名}`；如果是 operations 题，入口名使用类名，例如 `lt146.LRUCache`。如果用户同时传入自定义 `name`，则使用自定义目录名。`--question-number` 与 `-t/--type` 不能同时使用，因为远程题目会生成具体 case，固定类型模板会产生语义冲突。
+传入 `--question-number/-q` 时，命令会先拉取题目元数据，再提取 Python3 snippet 的入口方法或操作类名和题面 examples。远程拉取优先使用 `leetcode.cn`，中国站失败时回退 `leetcode.com`，并对短暂 timeout 或网络不可达做有限重试。目录名默认使用 `lt{题号三位}.{入口名}`；如果是 operations 题，入口名使用类名，例如 `lt146.LRUCache`。如果用户同时传入自定义 `name`，则使用自定义目录名。`--question-number` 与 `-t/--type` 不能同时使用，因为远程题目会生成具体 case，固定类型模板会产生语义冲突。
 
 题号初始化只支持公开免费题目和题面示例，不承诺隐藏测试集、付费题、多语言模板或自动高级类型识别。网络失败、题号不存在、缺少 Python3 模板或示例无法解析时，命令会报错并且不创建目录。
 
@@ -52,8 +52,9 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 在 `leet_chaser.leetcode_client` 中新增：
 
 - `fetch_question_metadata(question_number)`：根据题号拉取公开 LeetCode 题目元数据。
-- `fetch_title_slug(question_number)`：从题号查询题目 slug，并拒绝付费题。
-- `fetch_question_data(title_slug)`：通过题目 slug 拉取标题、题面、Python3 snippets 和 metadata。
+- `fetch_title_slug(question_number)`：优先从 `leetcode.cn` 查询题目 slug，失败后回退 `leetcode.com`，并拒绝付费题。
+- `fetch_question_data(title_slug)`：优先从 `leetcode.cn` 拉取标题、题面、Python3 snippets 和 metadata，失败后回退 `leetcode.com`。
+- `post_graphql(payload, operation, endpoint)`：按 endpoint 发起 GraphQL 请求，对 timeout 和网络不可达做有限重试。
 - `build_remote_init_files(metadata)`：生成默认目录名、`solution.py` 和 `cases.toml`。
 - `parse_examples(content_html, parameter_names)`：从题面 examples 中提取输入输出 case。
 - `parse_class_name_from_python_code(python_code)`：从设计题 Python3 snippet 中提取顶层类名。
@@ -78,6 +79,10 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 - `test_init_creates_remote_question_workspace`：同时验证远程 init 会输出题号拉取、题目详情、文件生成和写入进度。
 - `test_init_remote_question_accepts_custom_directory_name`：验证自定义目录名会覆盖默认远程目录名。
 - `test_init_remote_question_rejects_case_type`：验证 `-q` 与 `-t` 同时使用会报错且不创建目录。
+- `test_fetch_title_slug_from_cn_reads_problemset_v2_questions`：验证中国站 `problemsetQuestionListV2` 响应可解析出题目 slug。
+- `test_fetch_title_slug_falls_back_to_global_after_cn_failure`：验证中国站题号查询失败后会回退国际站。
+- `test_fetch_question_data_falls_back_to_global_after_cn_failure`：验证中国站详情查询失败后会回退国际站。
+- `test_post_graphql_retries_transient_timeout`：验证短暂 timeout 会重试并在后续成功时返回数据。
 - `test_post_graphql_reports_http_query_errors`：验证 HTTP 查询失败会包含阶段、状态码和接口变更提示。
 - `test_post_graphql_reports_network_unreachable`：验证接口不可达会提示网络、DNS、代理或 LeetCode 可用性。
 - `test_post_graphql_reports_graphql_schema_errors`：验证 GraphQL schema 错误会包含接口变更提示和原始 message。

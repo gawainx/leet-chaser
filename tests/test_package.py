@@ -12,10 +12,15 @@ from leet_chaser import __version__
 from leet_chaser.case_file import CASE_MODE_OPERATIONS, Case, CaseFile, OperationCase, parse_case_data, read_case_file
 from leet_chaser.cli import app, normalize_project_name, resolve_init_case_type
 from leet_chaser.leetcode_client import (
+    LEETCODE_CN_ENDPOINT,
+    LEETCODE_GLOBAL_ENDPOINT,
     LeetCodeClientError,
     LeetCodeQuestionMetadata,
     build_remote_init_files,
+    fetch_question_data,
     fetch_title_slug,
+    fetch_title_slug_from_cn,
+    fetch_title_slug_from_global,
     format_remote_case_toml,
     parse_entrypoint_from_python_code,
     parse_class_name_from_python_code,
@@ -619,12 +624,17 @@ def test_fetch_title_slug_reads_problemset_data_field(monkeypatch: pytest.Monkey
         None.
     """
 
-    def fake_post_graphql(payload: dict, operation: str = "query LeetCode") -> dict:
+    def fake_post_graphql(
+        payload: dict,
+        operation: str = "query LeetCode",
+        endpoint=LEETCODE_GLOBAL_ENDPOINT,
+    ) -> dict:
         """Return a minimal LeetCode problemset response.
 
         Args:
             payload: GraphQL payload produced by title slug lookup.
             operation: Human-readable operation name.
+            endpoint: GraphQL endpoint configuration.
 
         Returns:
             Fake GraphQL response using the current ``data`` field name.
@@ -647,7 +657,146 @@ def test_fetch_title_slug_reads_problemset_data_field(monkeypatch: pytest.Monkey
 
     monkeypatch.setattr("leet_chaser.leetcode_client.post_graphql", fake_post_graphql)
 
-    assert fetch_title_slug(128) == "longest-consecutive-sequence"
+    assert fetch_title_slug_from_global(128) == "longest-consecutive-sequence"
+
+
+def test_fetch_title_slug_from_cn_reads_problemset_v2_questions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify LeetCode CN title slug lookup reads problemset V2 questions.
+
+    Args:
+        monkeypatch: Pytest helper used to replace the GraphQL request.
+
+    Returns:
+        None.
+    """
+
+    def fake_post_graphql(
+        payload: dict,
+        operation: str = "query LeetCode",
+        endpoint=LEETCODE_GLOBAL_ENDPOINT,
+    ) -> dict:
+        """Return a minimal LeetCode CN problemset response.
+
+        Args:
+            payload: GraphQL payload produced by title slug lookup.
+            operation: Human-readable operation name.
+            endpoint: GraphQL endpoint configuration.
+
+        Returns:
+            Fake GraphQL response using LeetCode CN's field names.
+        """
+        assert "problemsetQuestionListV2" in payload["query"]
+        assert payload["variables"]["skip"] == 145
+        assert endpoint == LEETCODE_CN_ENDPOINT
+        return {
+            "data": {
+                "problemsetQuestionListV2": {
+                    "questions": [
+                        {
+                            "questionFrontendId": "146",
+                            "titleSlug": "lru-cache",
+                            "paidOnly": False,
+                        }
+                    ]
+                }
+            }
+        }
+
+    monkeypatch.setattr("leet_chaser.leetcode_client.post_graphql", fake_post_graphql)
+
+    assert fetch_title_slug_from_cn(146) == "lru-cache"
+
+
+def test_fetch_title_slug_falls_back_to_global_after_cn_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify title slug lookup falls back to global when LeetCode CN fails.
+
+    Args:
+        monkeypatch: Pytest helper used to replace endpoint-specific lookup.
+
+    Returns:
+        None.
+    """
+    calls = []
+
+    def fake_fetch_title_slug_from_cn(question_number: int) -> str:
+        """Raise a CN lookup failure.
+
+        Args:
+            question_number: Public LeetCode frontend question number.
+
+        Raises:
+            LeetCodeClientError: Always raised for this test.
+        """
+        calls.append(("cn", question_number))
+        raise LeetCodeClientError("cn timeout")
+
+    def fake_fetch_title_slug_from_global(question_number: int) -> str:
+        """Return the global fallback slug.
+
+        Args:
+            question_number: Public LeetCode frontend question number.
+
+        Returns:
+            Matching title slug.
+        """
+        calls.append(("global", question_number))
+        return "two-sum"
+
+    monkeypatch.setattr(
+        "leet_chaser.leetcode_client.fetch_title_slug_from_cn",
+        fake_fetch_title_slug_from_cn,
+    )
+    monkeypatch.setattr(
+        "leet_chaser.leetcode_client.fetch_title_slug_from_global",
+        fake_fetch_title_slug_from_global,
+    )
+
+    assert fetch_title_slug(1) == "two-sum"
+    assert calls == [("cn", 1), ("global", 1)]
+
+
+def test_fetch_question_data_falls_back_to_global_after_cn_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify question details fall back to global when LeetCode CN fails.
+
+    Args:
+        monkeypatch: Pytest helper used to replace endpoint-specific detail fetch.
+
+    Returns:
+        None.
+    """
+    calls = []
+
+    def fake_fetch_question_data_from_endpoint(title_slug: str, endpoint) -> dict:
+        """Return global data after a CN failure.
+
+        Args:
+            title_slug: LeetCode question slug.
+            endpoint: GraphQL endpoint configuration.
+
+        Returns:
+            Fake question data from the global endpoint.
+
+        Raises:
+            LeetCodeClientError: Raised for the CN endpoint.
+        """
+        calls.append(endpoint.name)
+        if endpoint == LEETCODE_CN_ENDPOINT:
+            raise LeetCodeClientError("cn timeout")
+        return {"titleSlug": title_slug}
+
+    monkeypatch.setattr(
+        "leet_chaser.leetcode_client.fetch_question_data_from_endpoint",
+        fake_fetch_question_data_from_endpoint,
+    )
+
+    assert fetch_question_data("two-sum") == {"titleSlug": "two-sum"}
+    assert calls == ["leetcode.cn", "leetcode.com"]
 
 
 def test_fetch_title_slug_reports_paid_only_question(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -660,12 +809,17 @@ def test_fetch_title_slug_reports_paid_only_question(monkeypatch: pytest.MonkeyP
         None.
     """
 
-    def fake_post_graphql(payload: dict, operation: str = "query LeetCode") -> dict:
+    def fake_post_graphql(
+        payload: dict,
+        operation: str = "query LeetCode",
+        endpoint=LEETCODE_GLOBAL_ENDPOINT,
+    ) -> dict:
         """Return a paid-only problemset response.
 
         Args:
             payload: GraphQL payload produced by title slug lookup.
             operation: Human-readable operation name.
+            endpoint: GraphQL endpoint configuration.
 
         Returns:
             Fake GraphQL response for a paid-only question.
@@ -702,12 +856,17 @@ def test_fetch_title_slug_reports_unlisted_public_problemset(
         None.
     """
 
-    def fake_post_graphql(payload: dict, operation: str = "query LeetCode") -> dict:
+    def fake_post_graphql(
+        payload: dict,
+        operation: str = "query LeetCode",
+        endpoint=LEETCODE_GLOBAL_ENDPOINT,
+    ) -> dict:
         """Return an empty public problemset response.
 
         Args:
             payload: GraphQL payload produced by title slug lookup.
             operation: Human-readable operation name.
+            endpoint: GraphQL endpoint configuration.
 
         Returns:
             Fake GraphQL response with no matching question.
@@ -791,6 +950,74 @@ def test_post_graphql_reports_network_unreachable(monkeypatch: pytest.MonkeyPatc
     assert "fetch question detail failed" in message
     assert "could not reach LeetCode" in message
     assert "network unreachable" in message
+
+
+def test_post_graphql_retries_transient_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify transient timeout failures are retried before succeeding.
+
+    Args:
+        monkeypatch: Pytest helper used to replace ``urlopen``.
+
+    Returns:
+        None.
+    """
+    calls = []
+
+    class FakeResponse:
+        """Minimal successful context-manager response."""
+
+        def __enter__(self):
+            """Return this fake response.
+
+            Returns:
+                The fake response object.
+            """
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback) -> None:
+            """Close the fake response context.
+
+            Args:
+                exc_type: Exception type.
+                exc_value: Exception value.
+                traceback: Exception traceback.
+
+            Returns:
+                None.
+            """
+
+        def read(self) -> bytes:
+            """Return a minimal successful GraphQL payload.
+
+            Returns:
+                JSON response bytes.
+            """
+            return b'{"data":{"ok":true}}'
+
+    def fake_urlopen(request, timeout: int):
+        """Raise timeouts before returning a successful response.
+
+        Args:
+            request: Request passed to ``urlopen``.
+            timeout: Request timeout in seconds.
+
+        Returns:
+            Fake response object on the third call.
+
+        Raises:
+            TimeoutError: Raised for the first two calls.
+        """
+        calls.append(request.full_url)
+        if len(calls) < 3:
+            raise TimeoutError("timed out")
+        return FakeResponse()
+
+    monkeypatch.setattr("leet_chaser.leetcode_client.urlopen", fake_urlopen)
+
+    data = post_graphql({"query": "query { ping }"}, operation="lookup question number")
+
+    assert data == {"data": {"ok": True}}
+    assert len(calls) == 3
 
 
 def test_post_graphql_reports_graphql_schema_errors(monkeypatch: pytest.MonkeyPatch) -> None:

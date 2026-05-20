@@ -6,6 +6,7 @@ import ast
 import html
 import json
 import re
+import socket
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -18,8 +19,38 @@ from leet_chaser.case_templates import (
 
 CASE_MODE_NORMAL = "normal"
 CASE_MODE_OPERATIONS = "operations"
-GRAPHQL_URL = "https://leetcode.com/graphql"
+LEETCODE_CN_GRAPHQL_URL = "https://leetcode.cn/graphql"
+LEETCODE_GLOBAL_GRAPHQL_URL = "https://leetcode.com/graphql"
+GRAPHQL_URL = LEETCODE_GLOBAL_GRAPHQL_URL
 REQUEST_TIMEOUT_SECONDS = 10
+REQUEST_ATTEMPTS = 3
+
+
+@dataclass(frozen=True)
+class LeetCodeGraphQLEndpoint:
+    """GraphQL endpoint configuration.
+
+    Attributes:
+        name: Human-readable endpoint name for diagnostics.
+        url: GraphQL endpoint URL.
+        referer: Referer header accepted by the endpoint.
+    """
+
+    name: str
+    url: str
+    referer: str
+
+
+LEETCODE_CN_ENDPOINT = LeetCodeGraphQLEndpoint(
+    name="leetcode.cn",
+    url=LEETCODE_CN_GRAPHQL_URL,
+    referer="https://leetcode.cn/problemset/",
+)
+LEETCODE_GLOBAL_ENDPOINT = LeetCodeGraphQLEndpoint(
+    name="leetcode.com",
+    url=LEETCODE_GLOBAL_GRAPHQL_URL,
+    referer="https://leetcode.com/problemset/",
+)
 
 
 class LeetCodeClientError(ValueError):
@@ -118,6 +149,86 @@ def fetch_title_slug(question_number: int) -> str:
     Raises:
         LeetCodeClientError: If no exact public question match is found.
     """
+    try:
+        return fetch_title_slug_from_cn(question_number)
+    except LeetCodeClientError as cn_error:
+        try:
+            return fetch_title_slug_from_global(question_number)
+        except LeetCodeClientError as global_error:
+            raise LeetCodeClientError(
+                f"question {question_number} lookup failed on leetcode.cn and leetcode.com; "
+                f"leetcode.cn detail: {cn_error}; leetcode.com detail: {global_error}"
+            ) from global_error
+
+
+def fetch_title_slug_from_cn(question_number: int) -> str:
+    """Fetch a title slug from LeetCode CN's problemset list.
+
+    Args:
+        question_number: Public LeetCode frontend question number.
+
+    Returns:
+        Matching title slug.
+
+    Raises:
+        LeetCodeClientError: If no exact public question match is found.
+    """
+    query = """
+query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int) {
+  problemsetQuestionListV2(categorySlug: $categorySlug, limit: $limit, skip: $skip) {
+    questions {
+      questionFrontendId
+      titleSlug
+      paidOnly
+    }
+  }
+}
+"""
+    payload = {
+        "query": query,
+        "variables": {
+            "categorySlug": "",
+            "limit": 1,
+            "skip": question_number - 1,
+        },
+    }
+    data = post_graphql(
+        payload,
+        operation="lookup question number",
+        endpoint=LEETCODE_CN_ENDPOINT,
+    )
+    questions = (
+        data.get("data", {})
+        .get("problemsetQuestionListV2", {})
+        .get("questions", [])
+    )
+    for question in questions:
+        if str(question.get("questionFrontendId")) == str(question_number):
+            if question.get("paidOnly") is True:
+                raise LeetCodeClientError(
+                    f"question {question_number} is paid-only and cannot be fetched without login"
+                )
+            title_slug = question.get("titleSlug")
+            if isinstance(title_slug, str) and title_slug:
+                return title_slug
+    raise LeetCodeClientError(
+        f"question {question_number} was not found in the public leetcode.cn problemset; "
+        "it may not exist or may not be publicly listed"
+    )
+
+
+def fetch_title_slug_from_global(question_number: int) -> str:
+    """Fetch a title slug from LeetCode global's problemset search.
+
+    Args:
+        question_number: Public LeetCode frontend question number.
+
+    Returns:
+        Matching title slug.
+
+    Raises:
+        LeetCodeClientError: If no exact public question match is found.
+    """
     query = """
 query problemsetQuestionList($categorySlug: String, $filters: QuestionListFilterInput, $limit: Int, $skip: Int) {
   problemsetQuestionList: questionList(categorySlug: $categorySlug, filters: $filters, limit: $limit, skip: $skip) {
@@ -171,6 +282,34 @@ def fetch_question_data(title_slug: str) -> dict[str, Any]:
     Raises:
         LeetCodeClientError: If the question data is unavailable.
     """
+    try:
+        return fetch_question_data_from_endpoint(title_slug, LEETCODE_CN_ENDPOINT)
+    except LeetCodeClientError as cn_error:
+        try:
+            return fetch_question_data_from_endpoint(title_slug, LEETCODE_GLOBAL_ENDPOINT)
+        except LeetCodeClientError as global_error:
+            raise LeetCodeClientError(
+                f"question data for {title_slug} failed on leetcode.cn and leetcode.com; "
+                f"leetcode.cn detail: {cn_error}; leetcode.com detail: {global_error}"
+            ) from global_error
+
+
+def fetch_question_data_from_endpoint(
+    title_slug: str,
+    endpoint: LeetCodeGraphQLEndpoint,
+) -> dict[str, Any]:
+    """Fetch public question data by title slug from a GraphQL endpoint.
+
+    Args:
+        title_slug: LeetCode question slug.
+        endpoint: GraphQL endpoint configuration.
+
+    Returns:
+        Raw question data.
+
+    Raises:
+        LeetCodeClientError: If the question data is unavailable.
+    """
     query = """
 query questionData($titleSlug: String!) {
   question(titleSlug: $titleSlug) {
@@ -190,6 +329,7 @@ query questionData($titleSlug: String!) {
     data = post_graphql(
         {"query": query, "variables": {"titleSlug": title_slug}},
         operation="fetch question detail",
+        endpoint=endpoint,
     )
     question = data.get("data", {}).get("question")
     if not isinstance(question, dict):
@@ -200,12 +340,48 @@ query questionData($titleSlug: String!) {
     return question
 
 
-def post_graphql(payload: dict[str, Any], operation: str = "query LeetCode") -> dict[str, Any]:
+def post_graphql(
+    payload: dict[str, Any],
+    operation: str = "query LeetCode",
+    endpoint: LeetCodeGraphQLEndpoint = LEETCODE_GLOBAL_ENDPOINT,
+) -> dict[str, Any]:
     """Post a JSON GraphQL request to LeetCode.
 
     Args:
         payload: GraphQL query and variables.
         operation: Human-readable operation name for error messages.
+        endpoint: GraphQL endpoint configuration.
+
+    Returns:
+        Parsed JSON response.
+
+    Raises:
+        LeetCodeClientError: If the request or response fails.
+    """
+    last_error: LeetCodeClientError | None = None
+    for attempt in range(1, REQUEST_ATTEMPTS + 1):
+        try:
+            return post_graphql_once(payload, operation=operation, endpoint=endpoint)
+        except LeetCodeClientError as error:
+            last_error = error
+            if not is_retryable_client_error(error) or attempt == REQUEST_ATTEMPTS:
+                break
+    if last_error is None:
+        raise LeetCodeClientError(f"{operation} failed: no request attempt was made")
+    raise last_error
+
+
+def post_graphql_once(
+    payload: dict[str, Any],
+    operation: str,
+    endpoint: LeetCodeGraphQLEndpoint,
+) -> dict[str, Any]:
+    """Post a single JSON GraphQL request to LeetCode.
+
+    Args:
+        payload: GraphQL query and variables.
+        operation: Human-readable operation name for error messages.
+        endpoint: GraphQL endpoint configuration.
 
     Returns:
         Parsed JSON response.
@@ -215,12 +391,12 @@ def post_graphql(payload: dict[str, Any], operation: str = "query LeetCode") -> 
     """
     body = json.dumps(payload).encode("utf-8")
     request = Request(
-        GRAPHQL_URL,
+        endpoint.url,
         data=body,
         headers={
             "Content-Type": "application/json",
             "User-Agent": "leet-chaser",
-            "Referer": "https://leetcode.com/problemset/",
+            "Referer": endpoint.referer,
         },
         method="POST",
     )
@@ -230,18 +406,18 @@ def post_graphql(payload: dict[str, Any], operation: str = "query LeetCode") -> 
     except HTTPError as error:
         detail = read_http_error_body(error)
         raise LeetCodeClientError(
-            f"{operation} failed: LeetCode returned HTTP {error.code}; "
+            f"{operation} failed on {endpoint.name}: LeetCode returned HTTP {error.code}; "
             "this usually means the public GraphQL query is invalid or LeetCode changed its API"
             f"{detail}"
         ) from error
     except URLError as error:
         raise LeetCodeClientError(
-            f"{operation} failed: could not reach LeetCode; check network access, DNS, "
+            f"{operation} failed on {endpoint.name}: could not reach LeetCode; check network access, DNS, "
             f"proxy, or LeetCode availability; detail: {error.reason}"
         ) from error
-    except TimeoutError as error:
+    except (TimeoutError, socket.timeout) as error:
         raise LeetCodeClientError(
-            f"{operation} failed: LeetCode request timed out after "
+            f"{operation} failed on {endpoint.name}: LeetCode request timed out after "
             f"{REQUEST_TIMEOUT_SECONDS} seconds"
         ) from error
 
@@ -249,21 +425,34 @@ def post_graphql(payload: dict[str, Any], operation: str = "query LeetCode") -> 
         data = json.loads(raw_response)
     except json.JSONDecodeError as error:
         raise LeetCodeClientError(
-            f"{operation} failed: LeetCode returned invalid JSON; "
+            f"{operation} failed on {endpoint.name}: LeetCode returned invalid JSON; "
             "the public endpoint response format may have changed"
         ) from error
 
     if data.get("errors"):
         raise LeetCodeClientError(
-            f"{operation} failed: LeetCode returned a GraphQL error; "
+            f"{operation} failed on {endpoint.name}: LeetCode returned a GraphQL error; "
             "this usually means the public GraphQL schema or required arguments changed; "
             f"detail: {format_graphql_errors(data.get('errors'))}"
         )
     if not isinstance(data, dict):
         raise LeetCodeClientError(
-            f"{operation} failed: LeetCode returned an invalid response shape"
+            f"{operation} failed on {endpoint.name}: LeetCode returned an invalid response shape"
         )
     return data
+
+
+def is_retryable_client_error(error: LeetCodeClientError) -> bool:
+    """Return whether a client error should be retried.
+
+    Args:
+        error: Request error raised by ``post_graphql_once``.
+
+    Returns:
+        True when the error is likely transient.
+    """
+    message = str(error)
+    return "timed out" in message or "could not reach LeetCode" in message
 
 
 def read_http_error_body(error: HTTPError) -> str:
