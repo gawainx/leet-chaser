@@ -1,3 +1,4 @@
+- (working) : 2026.05.20 为 `run` 和 `debug` 增加 `--entry/-e` 入口文件参数，默认仍加载 `solution.py`；用户传入不带后缀的入口名会自动补全 `.py`，例如 `-e slv` 加载 `slv.py`，README、run/debug 文档、设计文档和开发计划已同步，tests/test_runner.py、tests/test_debugger.py、tests/test_package.py 覆盖核心逻辑和 CLI。
 - (working) : 2026.05.20 修复题号初始化远程请求稳定性，`leet-chaser init --question-number/-q` 现在优先使用 `leetcode.cn` 拉取题号 slug 和题目详情，失败后回退 `leetcode.com`，并对短暂 timeout 或网络不可达做有限重试；docs/init-command.md 和设计文档已记录新行为，tests/test_package.py 覆盖中国站 schema、fallback 和 retry。
 - (2be80a2) : 2026.05.20 完成题号初始化远程请求稳定性收尾，默认路径从国际站切换为优先访问 leetcode.cn，并保留 leetcode.com 作为兜底来源；中国站题号查询采用 problemsetQuestionListV2 按题号偏移取候选并校验 frontend id，详情查询继续复用英文题面以保持现有样例解析稳定；请求层只对 timeout 和网络不可达做有限重试，HTTP 与 GraphQL schema 错误仍按确定性失败处理。
 - (working) : 2026.05.20 修正 init 注释模板验收问题，普通模式 `cases.toml` 的可取消注释配置区现在包含单链表、双向链表、循环链表和二叉树的 `input_types`、`output_type`、`input`、`output` 示例，不再只列高级类型枚举；tests/test_package.py 已补充高级类型注释断言。

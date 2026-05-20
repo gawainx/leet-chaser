@@ -62,6 +62,46 @@ output = [0, 1]
     assert result.passed[0].actual == [0, 1]
 
 
+def test_run_problem_completes_custom_entry_file_py_suffix(tmp_path: Path) -> None:
+    """Verify run completes a suffix-less custom entry name with ``.py``.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "custom-entry"
+    write_problem(
+        problem_dir,
+        """
+class Solution:
+    def echo(self, value):
+        return "default"
+""",
+        """
+entrypoint = "echo"
+
+[[cases]]
+input = ["ok"]
+output = "ok"
+""",
+    )
+    (problem_dir / "slv.py").write_text(
+        """
+class Solution:
+    def echo(self, value):
+        return value
+""",
+        encoding="utf-8",
+    )
+
+    result = run_problem(problem_dir, entry_file=Path("slv"))
+
+    assert result.solution_path == problem_dir / "slv.py"
+    assert result.passed[0].actual == "ok"
+
+
 def test_run_problem_executes_operations_mode_case(tmp_path: Path) -> None:
     """Verify operation sequences construct and call a design-problem class.
 

@@ -13,6 +13,7 @@ from leet_chaser.runner import (
     load_solution_module,
     normalize_case_value,
     resolve_solution_method,
+    resolve_entry_file,
     select_actual_result,
 )
 
@@ -67,6 +68,7 @@ def debug_problem(
     problem_dir: Path,
     case_path: Path | None = None,
     traces: tuple[str, ...] = (),
+    entry_file: Path = Path("solution.py"),
 ) -> ProblemDebugResult:
     """Run one debug TOML case with line tracing enabled on the entrypoint.
 
@@ -74,6 +76,7 @@ def debug_problem(
         problem_dir: Directory containing ``solution.py``.
         case_path: TOML file containing exactly one debug case.
         traces: Additional expressions or variable names to watch with snoop.
+        entry_file: Python entry file to load, relative to ``problem_dir`` unless absolute.
 
     Returns:
         Structured result summary for the debugged case.
@@ -82,7 +85,7 @@ def debug_problem(
         ProblemRunError: If the workspace or solution shape is invalid.
         ProblemDebugError: If the debug case file is missing or has multiple cases.
     """
-    solution_path = problem_dir / "solution.py"
+    solution_path = resolve_entry_file(problem_dir, entry_file)
     resolved_case_path = case_path or problem_dir / "debug.toml"
 
     if not problem_dir.is_dir():

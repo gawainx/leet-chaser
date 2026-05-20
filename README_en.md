@@ -82,6 +82,14 @@ Run the cases:
 leet-chaser run two-sum
 ```
 
+By default, the command runs `<problem-dir>/solution.py`. You can choose another entry file, and the argument does not need a `.py` suffix because the command completes it automatically:
+
+```shell
+leet-chaser run two-sum -e slv.py
+leet-chaser run two-sum --entry slv_enhanced.py
+leet-chaser run two-sum -e slv
+```
+
 ## Initialize From a LeetCode Question Number
 
 You can initialize from a public LeetCode question number. The command fetches the Python3 snippet and statement examples without login, OAuth, or cookies:
@@ -251,6 +259,7 @@ The debug command reads `<problem-dir>/debug.toml` by default and prints variabl
 leet-chaser debug two-sum
 leet-chaser debug two-sum -t seen -t rest
 leet-chaser debug two-sum -c two-sum/custom-debug.toml
+leet-chaser debug two-sum -e slv
 ```
 
 The debug command currently targets regular `entrypoint` mode. For operations mode, use `run` output with case, step, and operation context to locate the failing call.

@@ -64,6 +64,46 @@ output = [0, 1]
     assert result.passed
 
 
+def test_debug_problem_completes_custom_entry_file_py_suffix(tmp_path: Path) -> None:
+    """Verify debug completes a suffix-less custom entry name with ``.py``.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "debug-custom-entry"
+    write_debug_problem(
+        problem_dir,
+        """
+class Solution:
+    def echo(self, value):
+        return "default"
+""",
+        """
+entrypoint = "echo"
+
+[[cases]]
+input = ["ok"]
+output = "ok"
+""",
+    )
+    (problem_dir / "slv.py").write_text(
+        """
+class Solution:
+    def echo(self, value):
+        return value
+""",
+        encoding="utf-8",
+    )
+
+    result = debug_problem(problem_dir, entry_file=Path("slv"))
+
+    assert result.solution_path == problem_dir / "slv.py"
+    assert result.passed
+
+
 def test_debug_problem_passes_traces_to_snoop(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

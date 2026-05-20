@@ -2,7 +2,7 @@
 
 ## 需求内容
 
-Leet-Chaser 需要实现核心运行逻辑 `run`。用户传入题目文件夹后，命令自动读取该文件夹下的 `solution.py` 和 `cases.toml`，再根据 `cases.toml` 中的 `entrypoint` 配置调用 `Solution` 类上的同名方法。
+Leet-Chaser 需要实现核心运行逻辑 `run`。用户传入题目文件夹后，命令默认读取该文件夹下的 `solution.py` 和 `cases.toml`，也可以通过 `--entry/-e` 指定其他入口文件，再根据 `cases.toml` 中的 `entrypoint` 配置调用 `Solution` 类上的同名方法。
 
 每个 `[[cases]]` 表示一个测试用例。`input` 是传给入口方法的位置参数数组，`output` 是期望返回值。命令需要执行所有用例，收集所有失败结果，并在最后统一展示通过和失败情况。
 
@@ -10,16 +10,19 @@ Leet-Chaser 需要实现核心运行逻辑 `run`。用户传入题目文件夹�
 
 ## 设计
 
-`run` 的 CLI 入参改为题目文件夹：
+`run` 的 CLI 入参包含题目文件夹和可选入口文件：
 
 ```shell
 leet-chaser run <problem_dir>
+leet-chaser run <problem_dir> --entry/-e <entry-file>
 ```
 
-命令固定读取：
+命令读取：
 
-- `<problem_dir>/solution.py`
+- `<problem_dir>/solution.py`，或通过 `--entry/-e` 指定的入口文件。
 - `<problem_dir>/cases.toml`
+
+入口文件参数默认值是 `solution.py`。相对路径按 `<problem_dir>` 解析，绝对路径按原路径解析。用户传入的入口参数不强制写 `.py` 后缀；如果路径没有后缀，程序会自动补全 `.py`，因此 `-e slv` 会加载 `<problem_dir>/slv.py`，`-e slv_enhanced` 会加载 `<problem_dir>/slv_enhanced.py`。
 
 Python solution 的支持范围先保持为标准 LeetCode 形式：
 
@@ -58,7 +61,8 @@ result = getattr(instance, entrypoint)(*case.input)
 
 新增核心运行模块，并引入必要的类和函数封装。模块内部需要把 CLI、solution 加载、case 执行和结果汇总拆开，保持代码仓符合 Python 模块化设计规范，提高核心逻辑的可读性、可测试性和后续扩展空间：
 
-- `run_problem(problem_dir)`：读取题目目录中的 `solution.py` 和 `cases.toml`，执行全部 case，并返回运行结果。
+- `run_problem(problem_dir, entry_file=Path("solution.py"))`：读取题目目录中的入口文件和 `cases.toml`，执行全部 case，并返回运行结果。
+- `resolve_entry_file(problem_dir, entry_file)`：解析入口文件路径，相对路径基于题目目录。
 - `load_solution_module(solution_path)`：从指定 Python 文件加载 solution 模块。
 - `resolve_solution_method(module, entrypoint)`：校验 `Solution` 类和入口方法是否存在。
 - `run_cases(solution_class, entrypoint, cases)`：逐个 case 新建 `Solution()` 实例并调用入口方法。
@@ -74,6 +78,7 @@ CLI `run` 命令只负责参数处理、调用核心运行逻辑、打印汇总�
 测试覆盖：
 
 - 传入题目目录后会自动读取 `solution.py` 和 `cases.toml`。
+- 传入 `--entry/-e` 后会读取指定入口文件，且支持参数省略 `.py` 后缀。
 - 每个 case 都会创建新的 `Solution()` 实例，实例变量不会跨 case 污染。
 - 模块全局变量和类变量会在同一次 run 的多个 case 间保留。
 - 多个失败 case 会全部执行并统一收集。

@@ -1227,6 +1227,51 @@ output = [0, 1]
     assert "Summary: 1/1 passed, 0 failed, 0 error(s)." in result.output
 
 
+def test_run_command_completes_custom_entry_file_py_suffix(tmp_path: Path) -> None:
+    """Verify run accepts an entry name without forcing users to type ``.py``.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "custom-entry"
+    problem_dir.mkdir()
+    (problem_dir / "solution.py").write_text(
+        """
+class Solution:
+    def echo(self, value):
+        return "default"
+""",
+        encoding="utf-8",
+    )
+    (problem_dir / "slv.py").write_text(
+        """
+class Solution:
+    def echo(self, value):
+        return value
+""",
+        encoding="utf-8",
+    )
+    (problem_dir / "cases.toml").write_text(
+        """
+entrypoint = "echo"
+
+[[cases]]
+input = ["ok"]
+output = "ok"
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["run", str(problem_dir), "-e", "slv"], catch_exceptions=False, env={})
+
+    assert result.exit_code == 0
+    assert "slv.py" in result.output
+    assert "PASS case 1" in result.output
+
+
 def test_reverse_linked_list_example_runs_successfully() -> None:
     """Verify the LeetCode 206 linked-list example stays runnable.
 
@@ -1451,6 +1496,51 @@ output = [0, 1]
     assert "Entrypoint: twoSum" in result.output
     assert "Trace: nums" in result.output
     assert "PASS actual=[0, 1] expected=[0, 1]" in result.output
+
+
+def test_debug_command_completes_custom_entry_file_py_suffix(tmp_path: Path) -> None:
+    """Verify debug accepts an entry name without forcing users to type ``.py``.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "debug-custom-entry"
+    problem_dir.mkdir()
+    (problem_dir / "solution.py").write_text(
+        """
+class Solution:
+    def echo(self, value):
+        return "default"
+""",
+        encoding="utf-8",
+    )
+    (problem_dir / "slv.py").write_text(
+        """
+class Solution:
+    def echo(self, value):
+        return value
+""",
+        encoding="utf-8",
+    )
+    (problem_dir / "debug.toml").write_text(
+        """
+entrypoint = "echo"
+
+[[cases]]
+input = ["ok"]
+output = "ok"
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["debug", str(problem_dir), "-e", "slv"], catch_exceptions=False, env={})
+
+    assert result.exit_code == 0
+    assert "slv.py" in result.output
+    assert "PASS actual='ok' expected='ok'" in result.output
 
 
 def test_debug_command_prints_inplace_return_warning(tmp_path: Path) -> None:

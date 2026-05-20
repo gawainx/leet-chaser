@@ -82,6 +82,14 @@ output = [1, 2]
 leet-chaser run two-sum
 ```
 
+默认会运行 `<problem-dir>/solution.py`。也可以指定其他入口文件，参数不要求写 `.py` 后缀，程序会自动补全：
+
+```shell
+leet-chaser run two-sum -e slv.py
+leet-chaser run two-sum --entry slv_enhanced.py
+leet-chaser run two-sum -e slv
+```
+
 ## 按题号初始化
 
 可以直接按公开 LeetCode 题号初始化。命令会拉取 Python3 模板和题面示例，不需要登录、OAuth 或 cookie：
@@ -251,6 +259,7 @@ output = [0, 1]
 leet-chaser debug two-sum
 leet-chaser debug two-sum -t seen -t rest
 leet-chaser debug two-sum -c two-sum/custom-debug.toml
+leet-chaser debug two-sum -e slv
 ```
 
 当前 debug 命令面向普通 `entrypoint` 模式；operations 模式可以先用 `run` 的 case、step、operation 输出定位失败步骤。

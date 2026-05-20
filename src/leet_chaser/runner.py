@@ -146,11 +146,12 @@ class ProblemRunResult:
         return bool(self.failed or self.errors)
 
 
-def run_problem(problem_dir: Path) -> ProblemRunResult:
+def run_problem(problem_dir: Path, entry_file: Path = Path("solution.py")) -> ProblemRunResult:
     """Run every case in a LeetCode-style problem directory.
 
     Args:
         problem_dir: Directory containing ``solution.py`` and ``cases.toml``.
+        entry_file: Python entry file to load, relative to ``problem_dir`` unless absolute.
 
     Returns:
         Structured result summary for all executed cases.
@@ -158,7 +159,7 @@ def run_problem(problem_dir: Path) -> ProblemRunResult:
     Raises:
         ProblemRunError: If the workspace or solution shape is invalid.
     """
-    solution_path = problem_dir / "solution.py"
+    solution_path = resolve_entry_file(problem_dir, entry_file)
     cases_path = problem_dir / "cases.toml"
     if not problem_dir.is_dir():
         raise ProblemRunError(f"problem directory does not exist: {problem_dir}")
@@ -185,6 +186,23 @@ def run_problem(problem_dir: Path) -> ProblemRunResult:
         errors=errors,
         warnings=warnings,
     )
+
+
+def resolve_entry_file(problem_dir: Path, entry_file: Path) -> Path:
+    """Resolve a solution entry file path for a problem directory.
+
+    Args:
+        problem_dir: Directory used as the base for relative entry files.
+        entry_file: Entry file name or path supplied by the user. Names without
+            a suffix are completed with ``.py``.
+
+    Returns:
+        Absolute or problem-directory-relative path to the entry file.
+    """
+    normalized_entry_file = entry_file if entry_file.suffix else entry_file.with_suffix(".py")
+    if normalized_entry_file.is_absolute():
+        return normalized_entry_file
+    return problem_dir / normalized_entry_file
 
 
 def load_solution_module(solution_path: Path) -> ModuleType:

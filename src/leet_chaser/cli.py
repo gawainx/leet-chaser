@@ -222,17 +222,26 @@ def init(
 
 
 @app.command()
-def run(problem_dir: Path) -> None:
+def run(
+    problem_dir: Path,
+    entry_file: Path = typer.Option(
+        Path("solution.py"),
+        "--entry",
+        "-e",
+        help="Python entry file. Defaults to <problem-dir>/solution.py.",
+    ),
+) -> None:
     """Run a problem directory against its TOML case file.
 
     Args:
         problem_dir: Directory containing ``solution.py`` and ``cases.toml``.
+        entry_file: Python entry file to load.
 
     Returns:
         None.
     """
     try:
-        result = run_problem(problem_dir)
+        result = run_problem(problem_dir, entry_file=entry_file)
     except CaseFileError as error:
         raise typer.BadParameter(str(error), param_hint="problem_dir") from error
     except ProblemRunError as error:
@@ -275,6 +284,12 @@ def debug(
         "-t",
         help="Variable name or expression to watch. Can be passed multiple times.",
     ),
+    entry_file: Path = typer.Option(
+        Path("solution.py"),
+        "--entry",
+        "-e",
+        help="Python entry file. Defaults to <problem-dir>/solution.py.",
+    ),
 ) -> None:
     """Debug one problem case with line tracing enabled on the entrypoint.
 
@@ -282,12 +297,13 @@ def debug(
         problem_dir: Directory containing ``solution.py``.
         case_path: TOML file containing exactly one debug case.
         traces: Variable names or expressions to watch with snoop.
+        entry_file: Python entry file to load.
 
     Returns:
         None.
     """
     try:
-        result = debug_problem(problem_dir, case_path=case_path, traces=tuple(traces or ()))
+        result = debug_problem(problem_dir, case_path=case_path, traces=tuple(traces or ()), entry_file=entry_file)
     except CaseFileError as error:
         raise typer.BadParameter(str(error), param_hint="case") from error
     except ProblemDebugError as error:
