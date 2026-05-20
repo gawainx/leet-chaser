@@ -1,3 +1,4 @@
+- (working) : 2026.05.20 修正 init 注释模板验收问题，普通模式 `cases.toml` 的可取消注释配置区现在包含单链表、双向链表、循环链表和二叉树的 `input_types`、`output_type`、`input`、`output` 示例，不再只列高级类型枚举；tests/test_package.py 已补充高级类型注释断言。
 - (working) : 2026.05.19 优化 init 生成的 `cases.toml` 模板，本地模板和题号初始化都会输出可取消注释的配置提示；普通模式提示 `input_types`、`output_type`、`inplace_write`、`inplace_index`、`unordered_output` 和类型枚举，operations 模式提示三数组对齐与构造函数规则；新增共享模板注释模块，tests/test_package.py 覆盖注释存在和解析结果不变。
 - (working) : 2026.05.14 优化题号初始化生成的 `cases.toml` 可读性，远程 init 不再使用默认 `tomli_w` 数组格式，改为一维数组单行、二维或更深层数组按嵌套层级换行；docs/init-command.md 已记录格式规则，tests/test_package.py 覆盖一维数组和二维矩阵格式并验证仍可解析。
 - (working) : 2026.05.14 优化题号初始化用户体验，`leet-chaser init --question-number/-q` 现在会输出拉取题号、已获取题目、生成本地文件和写入完成等步骤进度；普通本地模板 init 输出不变，README 和 docs/init-command.md 已补充说明，tests/test_package.py 覆盖进度输出。

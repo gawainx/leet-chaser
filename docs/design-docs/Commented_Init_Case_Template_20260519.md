@@ -23,7 +23,7 @@
 - `inplace_index`
 - `unordered_output`
 
-提示中列出当前支持的类型枚举：`raw`、`linked_list`、`doubly_linked_list`、`circular_linked_list`、`binary_tree`。
+提示中列出当前支持的类型枚举：`raw`、`linked_list`、`doubly_linked_list`、`circular_linked_list`、`binary_tree`。高级类型需要给出可取消注释的配置示例，覆盖单链表、双向链表、循环链表和二叉树的 `input_types`、`output_type`、`input`、`output` 写法。
 
 operations 模式与普通模式互斥。普通模板只用注释说明 operations 是另一种模式，不嵌入完整 operations 示例，避免用户误把两套结构混用。远程初始化识别到设计题时，生成 operations 专用模板，保留可运行字段：
 
@@ -40,6 +40,6 @@ operations 模板增加注释说明 `operations`、`input`、`output` 三个数�
 
 新增共享注释模板常量，由本地 `CASE_TEMPLATE_BY_TYPE` 和远程 `format_remote_case_toml()` 复用，保证两条 init 路径提示一致。
 
-本地模板继续保持当前样例内容，只在样例前插入注释区。远程题号模板在格式化时插入同样的普通模式注释区；operations 远程模板插入 operations 专用注释区。
+本地模板继续保持当前样例内容，只在样例前插入注释区。远程题号模板在格式化时插入同样的普通模式注释区；operations 远程模板插入 operations 专用注释区。普通模式注释区必须体现当前已支持的高级数据结构，不能只列字段名。
 
 测试验证生成文本包含关键注释字段，同时继续通过 `read_case_file()` 解析，确保注释不会改变运行行为。

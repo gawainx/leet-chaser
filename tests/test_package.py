@@ -49,6 +49,13 @@ def assert_normal_case_comments(case_text: str) -> None:
     """
     assert "# input_types = [\"raw\"]" in case_text
     assert "# output_type = \"raw\"" in case_text
+    assert "# input_types = [\"linked_list\"]" in case_text
+    assert "# output_type = \"linked_list\"" in case_text
+    assert "# input_types = [\"doubly_linked_list\"]" in case_text
+    assert "# input_types = [\"circular_linked_list\"]" in case_text
+    assert "# input = [{ values = [3, 2, 0, -4], pos = 1 }]" in case_text
+    assert "# input_types = [\"binary_tree\"]" in case_text
+    assert "# output_type = \"binary_tree\"" in case_text
     assert "# inplace_write = true" in case_text
     assert "# inplace_index = 0" in case_text
     assert "# unordered_output = true" in case_text

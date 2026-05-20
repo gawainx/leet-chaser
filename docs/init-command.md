@@ -34,7 +34,7 @@ Leet-Chaser 需要提供 `leet-chaser init <name>` 命令，方便用户快速�
 
 题号初始化生成的 `cases.toml` 会使用更适合阅读的数组格式：一维数组保持单行，二维或更深层数组按嵌套层级换行。这样数组题的样例不会被展开成每个元素一行，矩阵题仍保留行结构。operations 题会尽量保留 LeetCode 原始的 `operations/input/output` 三数组。
 
-所有 init 生成的 `cases.toml` 都会在文件顶部写入可取消注释的配置提示。普通模式模板会提示 `input_types`、`output_type`、`inplace_write`、`inplace_index` 和 `unordered_output`，并列出当前支持的高级类型。operations 模式模板会提示 `operations`、`input`、`output` 必须等长，且第一项操作必须等于 `class_name`。这些提示全部是 TOML 注释，默认不改变样例的运行行为。
+所有 init 生成的 `cases.toml` 都会在文件顶部写入可取消注释的配置提示。普通模式模板会提示 `input_types`、`output_type`、`inplace_write`、`inplace_index` 和 `unordered_output`，并提供单链表、双向链表、循环链表和二叉树的配置示例。operations 模式模板会提示 `operations`、`input`、`output` 必须等长，且第一项操作必须等于 `class_name`。这些提示全部是 TOML 注释，默认不改变样例的运行行为。
 
 远程错误提示按失败阶段输出：题号查 slug 阶段使用 `lookup question number failed`，题目详情阶段使用 `fetch question detail failed`。HTTP 400/GraphQL error 会提示公开 GraphQL 查询或 schema 可能变化；网络错误会提示接口不可达；付费题和公开题库查不到会单独说明，方便后续定位是题目公开性问题、接口变化还是本地网络问题。
 
