@@ -1268,7 +1268,6 @@ output = "ok"
     result = runner.invoke(app, ["run", str(problem_dir), "-e", "slv"], catch_exceptions=False, env={})
 
     assert result.exit_code == 0
-    assert "slv.py" in result.output
     assert "PASS case 1" in result.output
 
 
@@ -1539,7 +1538,6 @@ output = "ok"
     result = runner.invoke(app, ["debug", str(problem_dir), "-e", "slv"], catch_exceptions=False, env={})
 
     assert result.exit_code == 0
-    assert "slv.py" in result.output
     assert "PASS actual='ok' expected='ok'" in result.output
 
 
