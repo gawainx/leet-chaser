@@ -2,7 +2,7 @@
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, assert_never
 
 import typer
 from rich.console import Console
@@ -16,7 +16,15 @@ from leet_chaser.leetcode_client import (
     build_remote_init_files,
     fetch_question_metadata,
 )
-from leet_chaser.runner import ErrorCaseResult, ProblemRunError, ProblemRunResult, run_problem
+from leet_chaser.runner import (
+    CaseResult,
+    ErrorCaseResult,
+    FailedCaseResult,
+    PassedCaseResult,
+    ProblemRunError,
+    ProblemRunResult,
+    run_problem,
+)
 
 app = typer.Typer(help="Run LeetCode solutions against local test cases.")
 console = Console()
@@ -255,8 +263,7 @@ def run(
         console.print("Mode: operations")
 
     print_warnings(result.warnings)
-    for test_case in result.passed:
-        console.print(f"[green]PASS[/green] case {test_case.index}")
+    print_case_statuses(result)
     if result.failed:
         console.print(build_failure_table(result))
     print_error_tracebacks(result.errors)
@@ -328,6 +335,58 @@ def print_warnings(warnings: list[Any]) -> None:
     """
     for warning in warnings:
         console.print(f"[yellow]WARNING[/yellow] case {warning.index}: {warning.message}")
+
+
+def print_case_statuses(result: ProblemRunResult) -> None:
+    """Print one compact status line for each executed case result.
+
+    Args:
+        result: Structured run result containing passed, failed, and errored cases.
+
+    Returns:
+        None.
+    """
+    for test_case in sorted_case_results(result):
+        console.print(build_case_status(test_case))
+
+
+def sorted_case_results(result: ProblemRunResult) -> list[CaseResult]:
+    """Return case results in their execution order.
+
+    Args:
+        result: Structured run result containing passed, failed, and errored cases.
+
+    Returns:
+        Passed, failed, and errored case results ordered by case and operation step.
+    """
+    case_results: list[CaseResult] = [*result.passed, *result.failed, *result.errors]
+    return sorted(case_results, key=lambda test_case: (test_case.index, test_case.step or 0))
+
+
+def build_case_status(test_case: CaseResult) -> str:
+    """Build a compact status line for one case result.
+
+    Args:
+        test_case: A passed, failed, or errored case result.
+
+    Returns:
+        Rich-formatted status text for CLI output.
+    """
+    if isinstance(test_case, PassedCaseResult):
+        status = "[green]PASS[/green]"
+    elif isinstance(test_case, FailedCaseResult):
+        status = "[red]FAIL[/red]"
+    elif isinstance(test_case, ErrorCaseResult):
+        status = "[red]ERROR[/red]"
+    else:
+        assert_never(test_case)
+
+    step_text = ""
+    if test_case.step is not None:
+        step_text = f" step {test_case.step}"
+        if test_case.operation:
+            step_text = f"{step_text} {test_case.operation}"
+    return f"{status} case {test_case.index}{step_text}"
 
 
 def build_debug_summary(result: ProblemDebugResult) -> str:

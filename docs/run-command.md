@@ -51,6 +51,8 @@ result = getattr(instance, entrypoint)(*case.input)
 - case 调用过程中抛异常时，记录该 case 的 input、expected、异常类型和异常信息。
 - `solution.py` 导入失败、`Solution` 不存在、`entrypoint` 不存在时属于整体运行错误，命令无法进入 case 循环。
 
+CLI 会按执行顺序为每个结果打印一行简短状态，例如 `PASS case 1`、`FAIL case 2` 或 `ERROR case 3`。operations 模式会额外展示 step 和 operation，例如 `PASS case 1 step 2 put`。这些状态行只用于即时观察，不改变失败表格、异常 traceback 或最后 Summary 的输出。
+
 退出码规则：
 
 - 所有 case 通过时退出码为 `0`。
@@ -85,3 +87,4 @@ CLI `run` 命令只负责参数处理、调用核心运行逻辑、打印汇总�
 - case 抛异常时不会阻断后续 case。
 - 缺少 `Solution`、缺少入口方法、solution 导入失败会返回整体运行错误。
 - CLI 在全部通过时返回 `0`，存在失败或整体运行错误时返回非 `0`。
+- CLI 会对 pass、fail 和 error 都打印简短状态行，失败详情和异常堆栈仍在后续详细输出中展示。

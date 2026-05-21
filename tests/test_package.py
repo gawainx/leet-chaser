@@ -1355,8 +1355,8 @@ output = "expected-second"
     assert "Summary: 0/2 passed, 2 failed, 0 error(s)." in result.output
 
 
-def test_run_command_prints_case_tracebacks_after_normal_case_output(tmp_path: Path) -> None:
-    """Verify errored cases are printed with full tracebacks after normal results.
+def test_run_command_prints_immediate_case_status_before_details(tmp_path: Path) -> None:
+    """Verify run prints compact case statuses before detailed failure output.
 
     Args:
         tmp_path: Temporary directory provided by pytest.
@@ -1405,16 +1405,68 @@ output = "safe"
 
     assert result.exit_code == 1
     pass_index = result.output.index("PASS case 1")
+    fail_index = result.output.index("FAIL case 2")
+    status_error_index = result.output.index("ERROR case 3")
     table_index = result.output.index("Failed Cases")
     first_error_index = result.output.index("ERROR case 3: RuntimeError: broken case")
     second_error_index = result.output.index("ERROR case 4: ValueError: second error")
     summary_index = result.output.index("Summary: 1/4 passed, 1 failed, 2 error(s).")
-    assert pass_index < table_index < first_error_index < second_error_index < summary_index
+    assert pass_index < fail_index < status_error_index < table_index
+    assert table_index < first_error_index < second_error_index < summary_index
     assert "Traceback (most recent call last):" in result.output
     assert 'raise RuntimeError("broken case")' in result.output
     assert 'raise ValueError("second error")' in result.output
     assert "Input: ['boom']" in result.output
     assert "Expected: 'safe'" in result.output
+
+
+def test_run_command_prints_operations_step_statuses(tmp_path: Path) -> None:
+    """Verify operations mode statuses include case, step, and operation names.
+
+    Args:
+        tmp_path: Temporary directory provided by pytest.
+
+    Returns:
+        None.
+    """
+    problem_dir = tmp_path / "lru-cache"
+    problem_dir.mkdir()
+    (problem_dir / "solution.py").write_text(
+        """
+class LRUCache:
+    def __init__(self, capacity):
+        self.values = {}
+
+    def put(self, key, value):
+        self.values[key] = value
+
+    def get(self, key):
+        return self.values.get(key, -1)
+""",
+        encoding="utf-8",
+    )
+    (problem_dir / "cases.toml").write_text(
+        """
+mode = "operations"
+class_name = "LRUCache"
+
+[[cases]]
+operations = ["LRUCache", "put", "get", "get"]
+input = [[2], [1, 1], [1], [2]]
+output = ["null", "null", 1, 0]
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["run", str(problem_dir)], env={})
+
+    assert result.exit_code == 1
+    construct_index = result.output.index("PASS case 1 step 1 LRUCache")
+    put_index = result.output.index("PASS case 1 step 2 put")
+    get_pass_index = result.output.index("PASS case 1 step 3 get")
+    get_fail_index = result.output.index("FAIL case 1 step 4 get")
+    summary_index = result.output.index("Summary: 3/4 passed, 1 failed, 0 error(s).")
+    assert construct_index < put_index < get_pass_index < get_fail_index < summary_index
 
 
 def test_run_command_prints_inplace_return_warning(tmp_path: Path) -> None:
