@@ -5,7 +5,6 @@ from pathlib import Path
 import tomllib
 from urllib.error import HTTPError, URLError
 
-import click
 import pytest
 from typer.testing import CliRunner
 
@@ -1512,77 +1511,63 @@ output = [1, 3, 12, 0, 0]
     assert "PASS case 1" in result.output
 
 
-def test_main_prints_keyboard_interrupt_traceback(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    """Verify Ctrl+C interrupts print a traceback before exiting.
+def test_print_sigint_stack_prints_without_frame(capsys: pytest.CaptureFixture[str]) -> None:
+    """Verify Ctrl+C diagnostics still print when no frame is provided.
 
     Args:
-        monkeypatch: Pytest fixture used to replace the Typer app.
         capsys: Pytest fixture used to capture stderr output.
 
     Returns:
         None.
     """
 
-    def interrupting_app(*, standalone_mode: bool) -> None:
-        """Raise a keyboard interrupt like Typer would receive from Ctrl+C.
+    def simulated_solution_loop() -> None:
+        """Call the SIGINT handler from a frame named like user code.
 
         Args:
-            standalone_mode: Whether Typer should handle exceptions internally.
+            None.
 
         Returns:
             None.
         """
-        assert standalone_mode is False
-        raise KeyboardInterrupt
+        cli.print_sigint_stack(2, None)
 
-    monkeypatch.setattr(cli, "app", interrupting_app)
-
-    with pytest.raises(SystemExit) as exit_info:
-        cli.main()
+    with pytest.raises(KeyboardInterrupt):
+        simulated_solution_loop()
 
     captured = capsys.readouterr()
-    assert exit_info.value.code == 130
     assert "Traceback (most recent call last):" in captured.err
     assert "KeyboardInterrupt" in captured.err
 
 
-def test_main_prints_click_abort_keyboard_interrupt_traceback(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """Verify Click-converted Ctrl+C aborts still print a traceback.
+def test_print_sigint_stack_prints_supplied_frame(capsys: pytest.CaptureFixture[str]) -> None:
+    """Verify Ctrl+C diagnostics include the provided interrupted frame.
 
     Args:
-        monkeypatch: Pytest fixture used to replace the Typer app.
         capsys: Pytest fixture used to capture stderr output.
 
     Returns:
         None.
     """
 
-    def interrupting_app(*, standalone_mode: bool) -> None:
-        """Raise the Click abort shape produced from a keyboard interrupt.
+    def simulated_solution_loop() -> None:
+        """Call the SIGINT handler with the current user-code frame.
 
         Args:
-            standalone_mode: Whether Typer should handle exceptions internally.
+            None.
 
         Returns:
             None.
         """
-        assert standalone_mode is False
-        try:
-            raise KeyboardInterrupt
-        except KeyboardInterrupt as error:
-            raise click.Abort from error
+        frame = cli.sys._getframe()
+        cli.print_sigint_stack(2, frame)
 
-    monkeypatch.setattr(cli, "app", interrupting_app)
-
-    with pytest.raises(SystemExit) as exit_info:
-        cli.main()
+    with pytest.raises(KeyboardInterrupt):
+        simulated_solution_loop()
 
     captured = capsys.readouterr()
-    assert exit_info.value.code == 130
     assert "Traceback (most recent call last):" in captured.err
+    assert "simulated_solution_loop" in captured.err
     assert "KeyboardInterrupt" in captured.err
 
 

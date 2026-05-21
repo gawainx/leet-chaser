@@ -6,19 +6,21 @@
 
 ## 设计
 
-命令行入口改为项目自己的 `main()`，由 `main()` 调用 Typer app，并关闭 Typer 的 standalone exception handling。这样普通参数错误仍由命令函数抛给 Typer 流程处理，`KeyboardInterrupt` 则能在最外层被项目代码捕获。
+命令行入口继续调用 Typer app，保留 Typer/Click 的正常命令解析、错误处理和上下文生命周期。入口只在运行期间临时安装 `SIGINT` handler，在用户按 `Ctrl+C` 时直接打印信号打断位置的当前 Python frame 栈。
 
-Click 会在内部把 `KeyboardInterrupt` 转换成 `click.Abort`，并把原始中断放在 `__cause__` 里。因此入口同时处理原始 `KeyboardInterrupt` 和由它触发的 `click.Abort`。中断后使用标准库 traceback 输出完整堆栈，并以 shell 约定的 130 状态码退出。
+查证结果是 Typer 当前 `_main()` 会把 `KeyboardInterrupt` 转换成 `click.exceptions.Exit(130)`，外层无法再拿到原始用户代码栈。SIGINT handler 在 Typer 转换异常前运行，可以用标准库 `traceback.format_stack(frame)` 打印被中断的调用栈，然后继续抛出 `KeyboardInterrupt`，让 Typer/Click 按原有退出流程返回 130。
 
 ## 实现方法
 
 - `pyproject.toml` 的 `leet-chaser` console script 从 `leet_chaser.cli:app` 改为 `leet_chaser.cli:main`。
-- `src/leet_chaser/cli.py` 的 `main()` 使用 `app(standalone_mode=False)` 执行命令，捕获 `KeyboardInterrupt` 后打印 traceback 并 `SystemExit(130)`；如果捕获到 `click.Abort` 且 `__cause__` 是 `KeyboardInterrupt`，打印原始 cause 的 traceback 并同样以 130 退出。
-- `tests/test_package.py` 增加 `test_main_prints_keyboard_interrupt_traceback` 和 `test_main_prints_click_abort_keyboard_interrupt_traceback`，验证两种中断形态都会输出 traceback、包含 `KeyboardInterrupt`，并返回 130。
+- `src/leet_chaser/cli.py` 增加 `print_sigint_stack()`，收到 SIGINT 时打印 `Traceback (most recent call last):`、当前 frame 栈和 `KeyboardInterrupt`。
+- `src/leet_chaser/cli.py` 的 `main()` 临时安装该 SIGINT handler，正常调用 `app()`，结束时恢复原 handler。
+- `tests/test_package.py` 增加 `test_print_sigint_stack_prints_without_frame` 和 `test_print_sigint_stack_prints_supplied_frame`，验证 handler 输出 fallback 文本和被中断函数名。
 
 验证命令：
 
 ```bash
 uv run pytest -q
-conda run -n dev python -m pytest tests/test_package.py::test_main_prints_click_abort_keyboard_interrupt_traceback -q
+conda run -n dev python -m pytest tests/test_package.py::test_print_sigint_stack_prints_supplied_frame -q
+/opt/miniconda3/envs/dev/bin/leet-chaser run lt034.searchRange
 ```

@@ -1,11 +1,13 @@
 """Command line interface for Leet-Chaser."""
 
 import re
+import signal
+import sys
 import traceback
 from pathlib import Path
+from types import FrameType
 from typing import Any, assert_never
 
-import click
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -476,6 +478,27 @@ def format_value(value: Any) -> str:
     return repr(value)
 
 
+def print_sigint_stack(signum: int, frame: FrameType | None) -> None:
+    """Print the interrupted stack when Ctrl+C sends SIGINT.
+
+    Args:
+        signum: Signal number received by the process.
+        frame: Current Python frame interrupted by the signal.
+
+    Returns:
+        None.
+
+    Raises:
+        KeyboardInterrupt: Always raised after printing the interrupted stack.
+    """
+    print("Traceback (most recent call last):", file=sys.stderr)
+    if frame is not None:
+        for line in traceback.format_stack(frame):
+            print(line, file=sys.stderr, end="")
+    print("KeyboardInterrupt", file=sys.stderr)
+    raise KeyboardInterrupt
+
+
 def main() -> None:
     """Start the Leet-Chaser command line application.
 
@@ -485,13 +508,9 @@ def main() -> None:
     Returns:
         None.
     """
+    previous_handler = signal.getsignal(signal.SIGINT)
+    signal.signal(signal.SIGINT, print_sigint_stack)
     try:
-        app(standalone_mode=False)
-    except click.Abort as error:
-        if isinstance(error.__cause__, KeyboardInterrupt):
-            traceback.print_exception(type(error.__cause__), error.__cause__, error.__cause__.__traceback__)
-            raise SystemExit(130) from None
-        raise
-    except KeyboardInterrupt:
-        traceback.print_exc()
-        raise SystemExit(130) from None
+        app()
+    finally:
+        signal.signal(signal.SIGINT, previous_handler)
