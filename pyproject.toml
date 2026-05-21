@@ -33,7 +33,7 @@ Repository = "https://github.com/gawainx/leet-chaser"
 Issues = "https://github.com/gawainx/leet-chaser/issues"
 
 [project.scripts]
-leet-chaser = "leet_chaser.cli:app"
+leet-chaser = "leet_chaser.cli:main"
 
 [build-system]
 requires = ["hatchling"]

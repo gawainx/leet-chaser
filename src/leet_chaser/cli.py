@@ -1,6 +1,7 @@
 """Command line interface for Leet-Chaser."""
 
 import re
+import traceback
 from pathlib import Path
 from typing import Any, assert_never
 
@@ -483,4 +484,8 @@ def main() -> None:
     Returns:
         None.
     """
-    app()
+    try:
+        app(standalone_mode=False)
+    except KeyboardInterrupt:
+        traceback.print_exc()
+        raise SystemExit(130) from None

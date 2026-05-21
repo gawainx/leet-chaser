@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from leet_chaser import __version__
 from leet_chaser.case_file import CASE_MODE_OPERATIONS, Case, CaseFile, OperationCase, parse_case_data, read_case_file
+from leet_chaser import cli
 from leet_chaser.cli import app, normalize_project_name, resolve_init_case_type
 from leet_chaser.leetcode_client import (
     LEETCODE_CN_ENDPOINT,
@@ -1508,6 +1509,40 @@ output = [1, 3, 12, 0, 0]
     assert "WARNING case 1" in result.output
     assert "return value was ignored" in result.output
     assert "PASS case 1" in result.output
+
+
+def test_main_prints_keyboard_interrupt_traceback(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """Verify Ctrl+C interrupts print a traceback before exiting.
+
+    Args:
+        monkeypatch: Pytest fixture used to replace the Typer app.
+        capsys: Pytest fixture used to capture stderr output.
+
+    Returns:
+        None.
+    """
+
+    def interrupting_app(*, standalone_mode: bool) -> None:
+        """Raise a keyboard interrupt like Typer would receive from Ctrl+C.
+
+        Args:
+            standalone_mode: Whether Typer should handle exceptions internally.
+
+        Returns:
+            None.
+        """
+        assert standalone_mode is False
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli, "app", interrupting_app)
+
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main()
+
+    captured = capsys.readouterr()
+    assert exit_info.value.code == 130
+    assert "Traceback (most recent call last):" in captured.err
+    assert "KeyboardInterrupt" in captured.err
 
 
 def test_debug_command_executes_default_debug_case(tmp_path: Path) -> None:
