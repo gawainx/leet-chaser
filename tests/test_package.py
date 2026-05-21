@@ -5,6 +5,7 @@ from pathlib import Path
 import tomllib
 from urllib.error import HTTPError, URLError
 
+import click
 import pytest
 from typer.testing import CliRunner
 
@@ -1533,6 +1534,46 @@ def test_main_prints_keyboard_interrupt_traceback(monkeypatch: pytest.MonkeyPatc
         """
         assert standalone_mode is False
         raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli, "app", interrupting_app)
+
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main()
+
+    captured = capsys.readouterr()
+    assert exit_info.value.code == 130
+    assert "Traceback (most recent call last):" in captured.err
+    assert "KeyboardInterrupt" in captured.err
+
+
+def test_main_prints_click_abort_keyboard_interrupt_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Verify Click-converted Ctrl+C aborts still print a traceback.
+
+    Args:
+        monkeypatch: Pytest fixture used to replace the Typer app.
+        capsys: Pytest fixture used to capture stderr output.
+
+    Returns:
+        None.
+    """
+
+    def interrupting_app(*, standalone_mode: bool) -> None:
+        """Raise the Click abort shape produced from a keyboard interrupt.
+
+        Args:
+            standalone_mode: Whether Typer should handle exceptions internally.
+
+        Returns:
+            None.
+        """
+        assert standalone_mode is False
+        try:
+            raise KeyboardInterrupt
+        except KeyboardInterrupt as error:
+            raise click.Abort from error
 
     monkeypatch.setattr(cli, "app", interrupting_app)
 

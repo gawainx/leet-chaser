@@ -5,6 +5,7 @@ import traceback
 from pathlib import Path
 from typing import Any, assert_never
 
+import click
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -486,6 +487,11 @@ def main() -> None:
     """
     try:
         app(standalone_mode=False)
+    except click.Abort as error:
+        if isinstance(error.__cause__, KeyboardInterrupt):
+            traceback.print_exception(type(error.__cause__), error.__cause__, error.__cause__.__traceback__)
+            raise SystemExit(130) from None
+        raise
     except KeyboardInterrupt:
         traceback.print_exc()
         raise SystemExit(130) from None

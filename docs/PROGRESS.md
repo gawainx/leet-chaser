@@ -1,4 +1,4 @@
-- (working) : 2026.05.21 放行 `Ctrl+C` 中断输出，`leet-chaser` console script 现在进入项目 `main()`，关闭 Typer standalone handling 后捕获 `KeyboardInterrupt`，打印完整 traceback 并以 130 退出；tests/test_package.py 覆盖入口中断输出和既有 run 输出。
+- (working) : 2026.05.21 放行 `Ctrl+C` 中断输出，`leet-chaser` console script 现在进入项目 `main()`，关闭 Typer standalone handling 后捕获 `KeyboardInterrupt`，并额外处理 Click 转换出的 `click.Abort`，打印完整 traceback 后以 130 退出；uv 全量 pytest 与 conda dev 定向 pytest 已覆盖。
 - (working) : 2026.05.21 为 `leet-chaser run` 增加逐执行结果的简短状态输出，普通模式会按 case 顺序打印 PASS/FAIL/ERROR，operations 模式会额外展示 step 与 operation；失败表格、异常 traceback 和最终 Summary 保持原有输出，tests/test_package.py 和全量 pytest 已覆盖。
 - (working) : 2026.05.20 为 `run` 和 `debug` 增加 `--entry/-e` 入口文件参数，默认仍加载 `solution.py`；用户传入不带后缀的入口名会自动补全 `.py`，例如 `-e slv` 加载 `slv.py`，README、run/debug 文档、设计文档和开发计划已同步，tests/test_runner.py、tests/test_debugger.py、tests/test_package.py 覆盖核心逻辑和 CLI。
 - (working) : 2026.05.20 修复题号初始化远程请求稳定性，`leet-chaser init --question-number/-q` 现在优先使用 `leetcode.cn` 拉取题号 slug 和题目详情，失败后回退 `leetcode.com`，并对短暂 timeout 或网络不可达做有限重试；docs/init-command.md 和设计文档已记录新行为，tests/test_package.py 覆盖中国站 schema、fallback 和 retry。
